@@ -58,20 +58,53 @@ test('rejects malformed JSON', () => {
   assert.equal(parseVerdict('{"verdict":"drift",'), null);
 });
 
-test('normalizes a charter and caps its lists', () => {
+test('normalizes a refined goal update and caps its lists', () => {
   const verdict = parseVerdict(JSON.stringify({
     verdict: 'on_track',
     severity: 0,
-    charter: {
-      objective: 'ship a reviewer plugin',
-      success_criteria: ['a', 'b', 'c', 'd', 'e'],
-      constraints: ['keep it small'],
-      non_goals: [],
+    goal_update: {
+      change: 'refined',
+      current: {
+        objective: `  ${'x'.repeat(300)}  `,
+        success_criteria: ['a', 'b', 'c', 'd', 'e'],
+        constraints: ['keep it small'],
+        non_goals: [],
+      },
+      serves_final: true,
     },
   }));
-  assert.equal(verdict.charter.objective, 'ship a reviewer plugin');
-  assert.equal(verdict.charter.success_criteria.length, 4);
-  assert.deepEqual(verdict.charter.non_goals, []);
+  assert.equal(verdict.goal_update.change, 'refined');
+  assert.equal(verdict.goal_update.current.objective.length, 220);
+  assert.equal(verdict.goal_update.current.success_criteria.length, 4);
+  assert.equal(verdict.goal_update.final, null);
+});
+
+test('a silent substitution without drift evidence invalidates the verdict', () => {
+  const reply = JSON.stringify({
+    verdict: 'watch',
+    severity: 1,
+    goal_update: { change: 'silent_substitution', serves_final: false },
+  });
+  assert.equal(parseVerdict(reply), null);
+});
+
+test('a silent substitution raised as drift is accepted and never rewrites the ledger', () => {
+  const reply = JSON.stringify({
+    verdict: 'drift',
+    severity: 2,
+    drift_type: 'goal_substitution',
+    evidence: 'turn 4: the executor switched to a different objective without the principal',
+    steer: 'Return to the recorded objective.',
+    goal_update: { change: 'silent_substitution', serves_final: false, rationale: 'objective replaced' },
+  });
+  const verdict = parseVerdict(reply);
+  assert.equal(verdict.goal_update.change, 'silent_substitution');
+  assert.equal(verdict.goal_update.current, null);
+});
+
+test('a missing goal update parses as no change', () => {
+  const verdict = parseVerdict('{"verdict":"on_track","severity":0}');
+  assert.equal(verdict.goal_update.change, 'none');
 });
 
 test('clampText collapses whitespace and truncates', () => {

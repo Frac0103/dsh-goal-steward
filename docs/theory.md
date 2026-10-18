@@ -49,7 +49,9 @@
 | 五级升级阶梯 | 已实现 | `lib/prompt.js`、`lib/parse.js`、`lib/cadence.js` | [分级升级 / 分级授权](#escalation-ladder) |
 | 可执行判定必须举证 | 已实现 | `lib/parse.js` | [分级升级 / 分级授权](#escalation-ladder)、[例外管理原则](#management-by-exception) |
 | 例外管理式审计节奏 | 已实现 | `lib/cadence.js`、`lib/index.js` | [例外管理原则](#management-by-exception)、[PDCA 循环（戴明环）](#pdca)、[前馈 / 同期 / 反馈控制](#feedforward-feedback) |
+| 目标变更分类（演进 / 替换） | 已实现 | `lib/goals.js`、`lib/parse.js` | [变更控制 / 变更控制委员会](#change-control)、[约束即契约条款](#contract-theory)、[目标置换](#goal-displacement) |
 | 三层目标宪章 | 已实现 | `lib/prompt.js`、`lib/evidence.js`、`lib/reviewer.js` | [目标管理（MBO）](#mbo)、[OKR + SMART 原则](#okr-smart)、[变更控制 / 变更控制委员会](#change-control) |
+| 带版本的目标账本 | 已实现 | `lib/goals.js`、`lib/cadence.js`、`lib/index.js` | [目标管理（MBO）](#mbo)、[委托—代理问题](#principal-agent)、[审计独立性](#audit-independence) |
 | 诚实汇报规范 | 已实现 | `lib/prompt.js` | [委托—代理问题](#principal-agent) |
 | 评审员仅见证据包 | 已实现 | `lib/evidence.js`、`lib/reviewer.js` | [审计独立性](#audit-independence)、[有限理性 / 满意即止](#bounded-rationality) |
 | 方法不干预规则 | 已实现 | `lib/prompt.js` | [RACI 权责矩阵](#raci)、[任务式指挥 / 指挥官意图](#commanders-intent) |
@@ -58,6 +60,7 @@
 | 评审员无工具权限 | 已实现 | `lib/reviewer.js`、`lib/index.js` | [审计独立性](#audit-independence)、[RACI 权责矩阵](#raci) |
 | 系统提示中的常驻治理协议 | 已实现 | `lib/prompt.js`、`lib/index.js` | [目标管理（MBO）](#mbo)、[任务式指挥 / 指挥官意图](#commanders-intent)、[三道防线（COSO 模型）](#three-lines) |
 | 三道防线接线 | 已实现 | `lib/index.js`、`lib/prompt.js` | [三道防线（COSO 模型）](#three-lines) |
+| 双层目标模型（最终目标 / 当前目标） | 已实现 | `lib/goals.js`、`lib/evidence.js` | [目标管理（MBO）](#mbo)、[OKR + SMART 原则](#okr-smart)、[任务式指挥 / 指挥官意图](#commanders-intent) |
 
 ## 3. 理论条文与落法
 

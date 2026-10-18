@@ -20,6 +20,16 @@
 ### Added
 - 6 条锚点回归测试（总测试数 65）。
 
+## [0.2.0-alpha.1] - 2026-10-18
+
+### Added
+- **双层目标模型**：`lib/goals.js` 维护 `final`（最终目标）/ `current`（当前目标）两级账本，带 revision 与历史
+- **目标变更分类**：`none` / `refined` / `phase_advance` / `redirected` / `silent_substitution`；合法演进写入账本，静默替换判为 drift 且**不**改写账本
+- 评审员契约新增 `goal_update` 字段（取代 v0.1 的 `charter`），证据包新增 `goal_ledger`
+- steer 消息同时给出当前目标与最终目标，执行者可对照自己正在服务哪一层
+- 审计流水新增 `goalChange` / `goalApplied` / `goalRationale` / `goals{revision,lastChange,finalGoal,currentGoal}`
+- 理论登记新增 3 条机制（双层目标、目标变更分类、目标账本），`docs/theory.md` 重新生成
+- 测试 86 个（新增 21 条，覆盖目标账本、变更分类与实机接线）
 ## [Unreleased]
 
 ### Planned

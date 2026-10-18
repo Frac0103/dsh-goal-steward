@@ -112,6 +112,7 @@
 | `lib/config.js` | 配置解析与三档预设，非法值降级不抛错 | 否（纯函数） |
 | `lib/prompt.js` | 治理协议与 Reviewer 系统提示词（纯文本常量） | 否 |
 | `lib/evidence.js` | 证据包构造、宪章推导、事件日志读取 | 否（纯函数） |
+| `lib/goals.js` | 双层目标账本：归一化、变更分类、revision 与历史 | 否（纯函数） |
 | `lib/cadence.js` | 审计节奏与说话预算的状态机 | 否（纯函数） |
 | `lib/parse.js` | 裁决 JSON 的宽容提取与严格校验 | 否（纯函数） |
 | `lib/reviewer.js` | 评审调用、路由解析、steer 消息构造 | 是 |
@@ -128,18 +129,17 @@ Reviewer 收到的全部输入就是这一段 JSON：
 {
   "turn": 7,
   "reviews_so_far": 2,
-  "goal_charter": {
-    "objective": "做出可安装的目标治理插件并发布到 GitHub",
-    "success_criteria": ["能在 DSH 中安装", "能检测到目标偏离"],
-    "constraints": ["不改动宿主代码"],
-    "non_goals": ["不做 Web UI（0.1）"]
+  "goal_ledger": {
+    "revision": 3,
+    "final": { "objective": "做出可安装的目标治理插件并发布到 GitHub", "success_criteria": ["能安装", "能检测偏离"], "constraints": ["不改宿主代码"], "non_goals": ["0.2 前不做 Web UI"] },
+    "current": { "objective": "用真实会话验证双层目标账本", "success_criteria": ["审计流水出现 goalChange"], "constraints": [], "non_goals": [] },
+    "last_change": "refined"
   },
-  "principal_messages": ["……用户原话摘要……"],
+  "principal_initial_message": "……开场指令……",
+  "principal_messages": ["……最近用户原话摘要……"],
   "executor_final_message": "……执行者本轮最终可见输出……",
-  "recent_actions": ["turn 7 step 2: edit {\"file_path\":\"lib/index.js\"…}"],
-  "previous_findings": [
-    { "turn": 4, "severity": 2, "drift_type": "scope_creep", "evidence": "…" }
-  ],
+  "recent_actions": ["turn 7 step 2: edit {\"file_path\":\"lib/goals.js\"…}"],
+  "previous_findings": [],
   "note": "Evidence only. The executor reasoning is intentionally excluded."
 }
 ```
@@ -147,7 +147,7 @@ Reviewer 收到的全部输入就是这一段 JSON：
 约束：
 
 - 不包含执行者的推理过程、系统提示、文件内容。
-- 有字符预算（默认 12k），超限时先丢工具摘要、再丢较早的用户消息；**宪章与最终输出永不丢弃**。
+- 有字符预算（默认 12k），超限时先丢工具摘要、再丢较早的用户消息；**目标账本与最终输出永不丢弃**。
 - 单条用户消息截断 700 字符，最终输出截断 2000 字符，工具摘要截断 180 字符。
 
 ## 7. 裁决契约
@@ -159,7 +159,13 @@ Reviewer 收到的全部输入就是这一段 JSON：
   "drift_type": null,
   "evidence": "",
   "steer": "",
-  "charter": null
+  "goal_update": {
+    "change": "none | refined | phase_advance | redirected | silent_substitution",
+    "final": null,
+    "current": null,
+    "serves_final": true,
+    "rationale": ""
+  }
 }
 ```
 
@@ -169,7 +175,11 @@ Reviewer 收到的全部输入就是这一段 JSON：
 2. `verdict` 必须是五个枚举值之一；`severity` 由 verdict 推导（模型的数值字段仅作诊断记录），防止自相矛盾。
 3. `severity >= 2` 时：`drift_type` 必须是六类之一、`evidence` 非空、`steer` 非空；任一缺失 → 整个裁决作废（按 L0 处理）。
 4. `severity < 2` 时：强制清空 `steer`，防止"温和提醒"夹带指令。
-5. `charter` 可选，列表最多 4 项，单项最多 160 字符。
+5. `goal_update` 缺失时按"无变化"处理；出现时 `change` 必须是五类之一：
+   - `refined` / `phase_advance` 必须带 `current`；`redirected` 必须带 `final`（`current` 缺省等于 `final`）；
+   - `silent_substitution` 必须同时满足 drift 要件（`severity >= 2`、`drift_type = goal_substitution`、有证据与 steer），且**永不改写账本**；
+   - `serves_final: false` 只允许出现在 `silent_substitution` 上。
+6. 账本更新是原子的：`goal_update` 不合法 → 整个裁决作废（不做半截写入）。
 
 **为什么这么严**：无证据的指控会让审查者变成噪音源；而"无 taxonomy 的 drift"不可统计、不可复盘。宁可漏报（fail-open），不可误报。
 
@@ -177,7 +187,7 @@ Reviewer 收到的全部输入就是这一段 JSON：
 
 | 触发 | 条件 | 是否消耗会话预算 |
 |---|---|---|
-| `initial` | 本会话第一次审计（建立宪章） | 是 |
+| `initial` | 本会话第一次审计（建立双层目标账本） | 是 |
 | `goal-changed` | 持久化 goal 的 revision 变化 | 是 |
 | `max-turn-gap` | 距上次审计 ≥ `maxTurnGap`（默认 6） | 是 |
 | `cadence` | 距上次审计 ≥ `reviewEveryTurns`（标准 3） | 是 |
@@ -215,7 +225,7 @@ Reviewer 收到的全部输入就是这一段 JSON：
 `$DSH_HOME/goal-steward/audit.jsonl`，每行一条，含：
 
 ```json
-{"ts":"2026-10-18T08:00:00.000Z","v":1,"event":"review","outcome":"ok","trigger":"cadence","sessionId":"…","turn":7,"verdict":"drift","severity":2,"driftType":"scope_creep","evidence":"…","steer":"…","steered":true,"route":{"provider":"…","model":"…","source":"session"},"elapsedMs":2310,"reviewsSoFar":2,"steersSoFar":1,"charter":{…}}
+{"ts":"2026-10-18T08:00:00.000Z","v":1,"event":"review","outcome":"ok","trigger":"cadence","sessionId":"…","turn":7,"verdict":"drift","severity":2,"driftType":"scope_creep","evidence":"…","steer":"…","steered":true,"route":{"provider":"…","model":"…","source":"session"},"goalChange":"none","goalApplied":false,"goalRationale":"","goals":{"revision":2,"lastChange":"refined","finalGoal":"…","currentGoal":"…"},"elapsedMs":2310,"reviewsSoFar":2,"steersSoFar":1}
 ```
 
 失败与跳过也会记录（`outcome: "skip" | "error"`），以便复盘"该报没报"的情况。

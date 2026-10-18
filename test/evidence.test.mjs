@@ -2,14 +2,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   buildEvidencePack,
-  charterSource,
   collectFinalAssistantText,
   collectHumanIntent,
   collectInitialIntent,
   collectRecentActions,
-  deriveCharter,
   isHumanMessage,
 } from '../lib/evidence.js';
+import { createLedger, ledgerView } from '../lib/goals.js';
 
 /** Build a dense fake session log. */
 function makeEvents(list) {
@@ -50,21 +49,11 @@ test('the final assistant message falls back to the event log', () => {
   assert.equal(collectFinalAssistantText(events, []), 'I will write the plugin skeleton.');
 });
 
-test('a stored charter wins over a derived one', () => {
-  const stored = { objective: 'stored', success_criteria: [], constraints: [], non_goals: [] };
-  assert.deepEqual(deriveCharter({ storedCharter: stored, goalObjective: 'goal', humanIntent: ['hi'] }), stored);
-});
-
-test('the goal objective wins over the first human message', () => {
-  const charter = deriveCharter({ goalObjective: 'the real objective', humanIntent: ['chit chat'] });
-  assert.equal(charter.objective, 'the real objective');
-});
-
 test('the pack contains no executor reasoning field', () => {
   const pack = buildEvidencePack({
     turn: 4,
     reviewsSoFar: 1,
-    charter: { objective: 'ship it', success_criteria: [], constraints: [], non_goals: [] },
+    ledger: { revision: 1, final: { objective: 'ship it' }, current: { objective: 'ship it' }, last_change: 'initial' },
     humanIntent: ['do the thing'],
     finalMessage: 'done',
     recentActions: ['turn 4 step 1: edit'],
@@ -72,7 +61,7 @@ test('the pack contains no executor reasoning field', () => {
   });
   const parsed = JSON.parse(pack);
   assert.equal(parsed.turn, 4);
-  assert.equal(parsed.goal_charter.objective, 'ship it');
+  assert.equal(parsed.goal_ledger.final.objective, 'ship it');
   assert.equal('reasoning' in parsed, false);
   assert.match(pack, /The executor reasoning is intentionally excluded/);
 });
@@ -103,38 +92,29 @@ test('the opening mandate skips non-principal sources', () => {
   assert.equal(collectInitialIntent(toolOnly), 'the real mandate');
 });
 
-test('the opening mandate wins over the oldest recent message when deriving a charter', () => {
-  const charter = deriveCharter({
-    initialIntent: 'the original objective',
-    humanIntent: ['go ahead', 'continue'],
-  });
-  assert.equal(charter.objective, 'the original objective');
+test('the opening mandate wins over the oldest recent message', () => {
+  const intent = collectHumanIntent([
+    ...makeEvents([
+      { type: 'user/message', data: { source: { kind: 'user' }, content: [{ type: 'text', text: 'the original objective' }] } },
+      { type: 'user/message', data: { source: { kind: 'user' }, content: [{ type: 'text', text: 'go ahead' }] } },
+      { type: 'user/message', data: { source: { kind: 'user' }, content: [{ type: 'text', text: 'continue' }] } },
+    ]),
+  ]);
+  assert.deepEqual(intent, ['the original objective', 'go ahead', 'continue']);
 });
 
-test('a recorded charter wins over everything', () => {
-  const stored = { objective: 'recorded', success_criteria: ['a'], constraints: [], non_goals: [] };
-  const charter = deriveCharter({ storedCharter: stored, goalObjective: 'goal', initialIntent: 'initial', humanIntent: ['hi'] });
-  assert.equal(charter, stored);
-});
-
-test('charter source is reported with its precedence', () => {
-  assert.equal(charterSource({}), 'none');
-  assert.equal(charterSource({ initialIntent: 'x' }), 'initial-message');
-  assert.equal(charterSource({ goalObjective: 'x', initialIntent: 'y' }), 'goal-service');
-  assert.equal(charterSource({ storedCharter: { objective: 'z' }, goalObjective: 'x' }), 'reviewer-recorded');
-});
-
-test('the pack carries the opening mandate and its source separately from recent messages', () => {
+test('the pack carries the two-level goal ledger separately from recent messages', () => {
+  const ledger = createLedger({ initialIntent: 'the original objective' });
   const pack = buildEvidencePack({
     turn: 5,
-    charter: { objective: 'the original objective', success_criteria: [], constraints: [], non_goals: [] },
-    charterSource: 'initial-message',
+    ledger: ledgerView(ledger),
     initialMessage: 'the original objective',
     humanIntent: ['go ahead', 'continue'],
   });
   const parsed = JSON.parse(pack);
   assert.equal(parsed.principal_initial_message, 'the original objective');
-  assert.equal(parsed.goal_charter_source, 'initial-message');
   assert.deepEqual(parsed.principal_messages, ['go ahead', 'continue']);
-  assert.equal(parsed.goal_charter.objective, 'the original objective');
+  assert.equal(parsed.goal_ledger.revision, 1);
+  assert.equal(parsed.goal_ledger.final.objective, 'the original objective');
+  assert.equal(parsed.goal_ledger.current.objective, 'the original objective');
 });

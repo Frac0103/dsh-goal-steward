@@ -136,11 +136,36 @@ const DRIFT_REPLY = JSON.stringify({
   drift_type: 'scope_creep',
   evidence: 'turn 1 step 1: edit touched a file unrelated to the stated objective',
   steer: 'Return to the stated objective before adding new files.',
-  charter: {
-    objective: 'ship a goal governance plugin',
-    success_criteria: ['the reviewer audit runs at turn boundaries'],
-    constraints: ['do not modify the host'],
-    non_goals: ['web UI'],
+  goal_update: { change: 'none', final: null, current: null, serves_final: true, rationale: '' },
+});
+
+const REFINE_REPLY = JSON.stringify({
+  verdict: 'on_track',
+  severity: 0,
+  drift_type: null,
+  evidence: '',
+  steer: '',
+  goal_update: {
+    change: 'refined',
+    current: {
+      objective: 'phase two: verify the reviewer in a live conversation',
+      success_criteria: ['an audit record exists'],
+    },
+    serves_final: true,
+    rationale: 'the principal moved from building to verifying',
+  },
+});
+
+const SILENT_SUBSTITUTION_REPLY = JSON.stringify({
+  verdict: 'drift',
+  severity: 2,
+  drift_type: 'goal_substitution',
+  evidence: 'turn 1: the executor replaced the objective with an unrelated refactor',
+  steer: 'Return to the recorded objective and drop the refactor.',
+  goal_update: {
+    change: 'silent_substitution',
+    serves_final: false,
+    rationale: 'the current work no longer serves the final goal',
   },
 });
 
@@ -150,7 +175,7 @@ const ON_TRACK_REPLY = JSON.stringify({
   drift_type: null,
   evidence: '',
   steer: '',
-  charter: null,
+  goal_update: { change: 'none', final: null, current: null, serves_final: true, rationale: '' },
 });
 
 // --------------------------------------------------------------------------- tests
@@ -194,8 +219,9 @@ test('a drift verdict produces one evidence-backed steering message', async () =
   const pack = JSON.parse(call.messages[0].content[0].text);
   assert.equal(pack.turn, 1);
   assert.equal(pack.principal_initial_message, 'build a goal governance plugin and publish it to GitHub');
-  assert.equal(pack.goal_charter_source, 'initial-message');
-  assert.equal(pack.goal_charter.objective, 'build a goal governance plugin and publish it to GitHub');
+  assert.equal(pack.goal_ledger.revision, 1);
+  assert.equal(pack.goal_ledger.final.objective, 'build a goal governance plugin and publish it to GitHub');
+  assert.equal(pack.goal_ledger.current.objective, 'build a goal governance plugin and publish it to GitHub');
   assert.equal(pack.principal_messages[0], 'build a goal governance plugin and publish it to GitHub');
   assert.equal(pack.executor_final_message, 'I added a new unrelated module and some docs.');
   assert.ok(pack.recent_actions.length >= 1);
@@ -302,4 +328,47 @@ test('a gentle preset only audits on forced triggers', async () => {
   await stopTurn(handlers, agent, 1);
   assert.equal(llmCalls.length, 0, 'gentle does not audit the first turn');
   ctx.dispose();
+});
+
+// ------------------------------------------------- two-level goal ledger in action
+
+test('a refined current goal is written to the ledger and the audit trail', async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'goal-steward-test-'));
+  try {
+    const { ctx, handlers } = makeContext({ reply: REFINE_REPLY });
+    const { agent, steered } = makeAgent();
+    apply(ctx, { audit: true, auditDir: dir });
+    await stopTurn(handlers, agent, 1);
+    assert.equal(steered.length, 0, 'a legitimate refinement is not drift');
+    const audit = readFileSync(path.join(dir, 'audit.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);
+    assert.equal(audit[0].outcome, 'ok');
+    assert.equal(audit[0].goalChange, 'refined');
+    assert.equal(audit[0].goalApplied, true);
+    assert.equal(audit[0].goals.revision, 2);
+    assert.equal(audit[0].goals.finalGoal, 'build a goal governance plugin and publish it to GitHub');
+    assert.equal(audit[0].goals.currentGoal, 'phase two: verify the reviewer in a live conversation');
+    ctx.dispose();
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a silent substitution is flagged as drift and never rewrites the ledger', async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'goal-steward-test-'));
+  try {
+    const { ctx, handlers } = makeContext({ reply: SILENT_SUBSTITUTION_REPLY });
+    const { agent, steered } = makeAgent();
+    apply(ctx, { audit: true, auditDir: dir });
+    await stopTurn(handlers, agent, 1);
+    assert.equal(steered.length, 1, 'silent substitution must steer');
+    assert.match(steered[0].content[0].text, /goal_substitution/);
+    const audit = readFileSync(path.join(dir, 'audit.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);
+    assert.equal(audit[0].goalChange, 'silent_substitution');
+    assert.equal(audit[0].goalApplied, false);
+    assert.equal(audit[0].goals.revision, 1, 'the ledger must keep its original revision');
+    assert.equal(audit[0].goals.currentGoal, 'build a goal governance plugin and publish it to GitHub');
+    ctx.dispose();
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
