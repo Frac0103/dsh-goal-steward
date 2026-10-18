@@ -13,7 +13,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { apply, inject, name } from '../../lib/index.js';
@@ -395,5 +395,122 @@ test('a silent substitution is flagged as drift and never rewrites the ledger', 
     ctx.dispose();
   } finally {
     rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// --------------------------------------------- redirect corroboration, end to end
+
+const MANDATE_REPLY = JSON.stringify({
+  verdict: 'on_track',
+  severity: 0,
+  drift_type: null,
+  evidence: '',
+  steer: '',
+  goal_update: {
+    change: 'redirected',
+    final: { objective: 'abandon the plugin and refactor an unrelated module' },
+    serves_final: true,
+    // Quotes the opening mandate, which cannot corroborate a *change*.
+    rationale: 'build a goal governance plugin and publish it to GitHub',
+  },
+});
+
+const LATER_REDIRECT = 'Correction: the final goal is now to maintain the reviewer for my team instead of open sourcing it.';
+const LATER_REDIRECT_REPLY = JSON.stringify({
+  verdict: 'on_track',
+  severity: 0,
+  drift_type: null,
+  evidence: '',
+  steer: '',
+  goal_update: {
+    change: 'redirected',
+    final: { objective: 'maintain the reviewer for my team' },
+    serves_final: true,
+    rationale: LATER_REDIRECT,
+  },
+});
+
+/** Append one later principal message to the default fixture log. */
+function eventsWithLaterMessage(text) {
+  const events = makeEvents();
+  return [...events, { seq: events.length, type: 'user/message', data: { source: { kind: 'user' }, content: [{ type: 'text', text }] } }];
+}
+
+test('a redirect quoting only the opening mandate is guarded', async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'goal-steward-test-'));
+  try {
+    const { ctx, handlers } = makeContext({ reply: MANDATE_REPLY });
+    const { agent, steered } = makeAgent();
+    apply(ctx, { audit: true, auditDir: dir });
+    await stopTurn(handlers, agent, 1);
+    assert.equal(steered.length, 0);
+    const audit = readFileSync(path.join(dir, 'audit.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);
+    assert.equal(audit[0].outcome, 'guarded');
+    assert.equal(audit[0].goalApplied, false);
+    assert.equal(audit[0].goals.revision, 1);
+    assert.equal(audit[0].goals.finalGoal, 'build a goal governance plugin and publish it to GitHub');
+    ctx.dispose();
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a redirect quoting a later principal message is applied', async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'goal-steward-test-'));
+  try {
+    const { ctx, handlers } = makeContext({ reply: LATER_REDIRECT_REPLY });
+    const { agent, steered } = makeAgent(eventsWithLaterMessage(LATER_REDIRECT));
+    apply(ctx, { audit: true, auditDir: dir });
+    await stopTurn(handlers, agent, 1);
+    assert.equal(steered.length, 0, 'a corroborated redirect is change control, not drift');
+    const audit = readFileSync(path.join(dir, 'audit.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);
+    assert.equal(audit[0].outcome, 'ok');
+    assert.equal(audit[0].goalChange, 'redirected');
+    assert.equal(audit[0].goalApplied, true);
+    assert.equal(audit[0].goals.revision, 2);
+    assert.equal(audit[0].goals.finalGoal, 'maintain the reviewer for my team');
+    ctx.dispose();
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// ------------------------------------------------------- audit schema and fail-open
+
+test('the audit record schema is locked', async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'goal-steward-test-'));
+  try {
+    const { ctx, handlers } = makeContext({ reply: ON_TRACK_REPLY });
+    const { agent } = makeAgent();
+    apply(ctx, { audit: true, auditDir: dir });
+    await stopTurn(handlers, agent, 1);
+    const record = JSON.parse(readFileSync(path.join(dir, 'audit.jsonl'), 'utf8').trim());
+    assert.deepEqual(Object.keys(record).sort(), [
+      'driftType', 'elapsedMs', 'event', 'evidence', 'goalApplied', 'goalChange', 'goalRationale',
+      'goals', 'outcome', 'parseSource', 'reviewsSoFar', 'route', 'sessionId', 'severity',
+      'steer', 'steerSkipped', 'steered', 'steersSoFar', 'trigger', 'ts', 'turn', 'v', 'verdict',
+    ]);
+    assert.deepEqual(Object.keys(record.goals).sort(), ['currentGoal', 'finalGoal', 'lastChange', 'revision']);
+    ctx.dispose();
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('an unwritable audit trail never breaks the turn', async () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'goal-steward-test-'));
+  try {
+    // Point the audit directory INSIDE a regular file: mkdir must fail with ENOTDIR.
+    const blocker = path.join(root, 'blocker');
+    writeFileSync(blocker, 'not a directory', 'utf8');
+    const { ctx, handlers, llmCalls } = makeContext({ reply: DRIFT_REPLY });
+    const { agent, steered } = makeAgent();
+    apply(ctx, { audit: true, auditDir: path.join(blocker, 'audit') });
+    await stopTurn(handlers, agent, 1);
+    assert.equal(llmCalls.length, 1, 'the review still ran');
+    assert.equal(steered.length, 1, 'steering does not depend on the audit file');
+    ctx.dispose();
+  } finally {
+    rmSync(root, { recursive: true, force: true });
   }
 });

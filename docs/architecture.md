@@ -181,7 +181,7 @@ Reviewer 收到的全部输入就是这一段 JSON：
    - `serves_final: false` 只允许出现在 `silent_substitution` 上。
 6. 账本更新是原子的：`goal_update` 不合法 → 整个裁决作废（不做半截写入）。
 
-7. `redirected` 还须通过**逐字引用闸门**：`rationale` 必须包含至少 12 个字符的用户原话（去空白/标点后匹配用户消息），否则整条更新被拒绝，审计 `outcome: "guarded"`，账本不变。
+7. `redirected` 还须通过**逐字引用闸门**：`rationale` 必须包含至少 12 个字符的用户原话（去空白/标点后匹配**开场指令之后**的用户消息；开场指令本身不能佐证一次"变化"），否则整条更新被拒绝，审计 `outcome: "guarded"`，账本不变。
 
 **为什么这么严**：无证据的指控会让审查者变成噪音源；而"无 taxonomy 的 drift"不可统计、不可复盘。宁可漏报（fail-open），不可误报。**为什么这么严**：无证据的指控会让审查者变成噪音源；而"无 taxonomy 的 drift"不可统计、不可复盘。宁可漏报（fail-open），不可误报。
 
