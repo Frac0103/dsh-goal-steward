@@ -19,7 +19,12 @@ jobs:
         with:
           node-version: '22'
       - name: Pack the plugin tarball
-        run: npm pack
+        run: |
+          set -euo pipefail
+          npm pack
+          # Publish under a version-independent name so the documented install URL
+          # works for every release: releases/download/<tag>/dsh-goal-steward.tgz
+          mv dsh-goal-steward-*.tgz dsh-goal-steward.tgz
       - name: Publish the GitHub release and its tarball asset
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -34,4 +39,4 @@ jobs:
               --notes-file /tmp/release-notes.md \
               --prerelease
           fi
-          gh release upload "$GITHUB_REF_NAME" dsh-goal-steward-*.tgz --clobber
+          gh release upload "$GITHUB_REF_NAME" dsh-goal-steward.tgz --clobber

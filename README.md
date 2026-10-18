@@ -117,7 +117,7 @@ Desktop 的 profile 由桌面进程管理，npm CLI 会拒绝操作 `desktop` pr
 
 ```
 file:D:/project/dsh-goal-steward
-https://github.com/Frac0103/dsh-goal-steward/releases/download/v0.2.0-alpha.9/dsh-goal-steward.tgz
+https://github.com/Frac0103/dsh-goal-steward/releases/download/v0.2.0-alpha.10/dsh-goal-steward.tgz
 github:Frac0103/dsh-goal-steward
 ```
 
@@ -128,7 +128,7 @@ github:Frac0103/dsh-goal-steward
 ```bash
 # --profile 是 profile 名；desktop 之外的名字由 CLI 管理
 npx -p @deepseek-ai/dsh dsh plugin --profile <profile> add "file:D:/project/dsh-goal-steward"
-npx -p @deepseek-ai/dsh dsh plugin --profile <profile> add "https://github.com/Frac0103/dsh-goal-steward/releases/download/v0.2.0-alpha.9/dsh-goal-steward.tgz"
+npx -p @deepseek-ai/dsh dsh plugin --profile <profile> add "https://github.com/Frac0103/dsh-goal-steward/releases/download/v0.2.0-alpha.10/dsh-goal-steward.tgz"
 npx -p @deepseek-ai/dsh dsh plugin --profile <profile> add "github:Frac0103/dsh-goal-steward"
 ```
 
@@ -196,7 +196,7 @@ $DSH_HOME/goal-steward/audit.jsonl
 
 ## 状态
 
-`0.2.0-alpha.9` — 早期版本，接口与提示词仍会变。当前已实现：常驻治理协议、回合边界审计、证据包、严格裁决校验、分级 steer、审计流水、三档预设、**双层目标账本（final / current）与目标变更分类**、**最终目标重定向的逐字引用闸门**、**可卸载/可重载的治理实例（退役不发声、重复挂载只审一次）**、**审计流水回放继承（换届不换账）**、**`/steward` 用户主权命令通道（status / goal / why）**、**197 个测试（纯函数 + 对抗性 + 假上下文 + 真实组装）与覆盖率门禁**、**真实宿主 + 真实模型的 L4 实机验证**。
+`0.2.0-alpha.10` — 早期版本，接口与提示词仍会变。当前已实现：常驻治理协议、回合边界审计、证据包、严格裁决校验、分级 steer、审计流水、三档预设、**双层目标账本（final / current）与目标变更分类**、**最终目标重定向的逐字引用闸门**、**可卸载/可重载的治理实例（退役不发声、重复挂载只审一次）**、**审计流水回放继承（换届不换账）**、**`/steward` 用户主权命令通道（status / goal / why）**、**197 个测试（纯函数 + 对抗性 + 假上下文 + 真实组装）与覆盖率门禁**、**真实宿主 + 真实模型的 L4 实机验证**。
 
 路线图见 [docs/design.md#12-已知局限与路线图](./docs/design.md#12-已知局限与路线图)：
 Web UI 治理胶囊 → 真子代理调查 → 多模型隔离与组织级治理。

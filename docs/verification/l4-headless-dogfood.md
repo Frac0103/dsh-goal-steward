@@ -70,3 +70,24 @@ Profile patch（仅用于隔离验证数据）：
 - 验证会消耗少量真实模型额度；
 - 必须把 `auditDir` 指到临时目录，避免验证记录混入用户审计流水；
 - 一次性 profile、临时工作区与临时审计目录在验证后删除。
+
+## 附：发布资产安装路径验证（v0.2.0-alpha.9）
+
+实机验证使用 `file:` tarball 安装；为了确认 README 里给的下载 URL 本身可用，另做了一次从 GitHub Release 资产安装的端到端检查：
+
+```bash
+# 1. 全新 headless profile
+npx -p @deepseek-ai/dsh@0.2.0-rc.2 dsh --profile steward-dogfood3 --from-default-profile headless --dump-config
+
+# 2. 用 README 中记录的发布资产 URL 安装
+npx -p @deepseek-ai/dsh@0.2.0-rc.2 dsh plugin --profile steward-dogfood3 add \
+  "https://github.com/Frac0103/dsh-goal-steward/releases/download/v0.2.0-alpha.9/dsh-goal-steward.tgz"
+```
+
+结果：
+
+- 资产下载并安装成功（`dsh-goal-steward 0.2.0-alpha.9`）；
+- `dsh.profile.bundles` 自动追加 `dsh-goal-steward`；
+- `--dump-config` 组合结果出现 `# == dsh-goal-steward` 与 `id: goal-steward` 行。
+
+因此 README 的三种安装路径（Desktop 插件管理器 / CLI profile / 手工挂载）中，CLI 路径的命令与 URL 都经过实际执行验证。

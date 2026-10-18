@@ -66,6 +66,15 @@
 - CI 的 Node 20 lane 自动跳过真实组装层（宿主服务包需要 Node ≥22 的 `Promise.withResolvers`）；插件本身仍声明 `engines.node >= 20`
 - 测试总数 120（纯函数/契约 74 + 对抗性 30 + 假上下文 13 + 真实组装 3）
 
+## [0.2.0-alpha.10] - 2026-10-18
+
+### Fixed
+- release workflow 上传的资产名带版本号（`dsh-goal-steward-0.2.0-alpha.N.tgz`），导致 README 中版本无关的安装 URL（`.../releases/download/<tag>/dsh-goal-steward.tgz`）404。workflow 现在固定以 `dsh-goal-steward.tgz` 上传；alpha.9 的资产已回填为稳定名并验证下载。
+- 安装文档中的 `releases/latest`（GitHub 会排除 prerelease）改为显式 tag URL。
+
+### Verified
+- **发布资产安装路径端到端验证**：全新 headless profile 执行 `dsh plugin --profile <name> add <release URL>` → 资产下载安装、`dsh.profile.bundles` 自动追加、composed config 出现 `dsh-goal-steward` 行。记录见 `docs/verification/l4-headless-dogfood.md` 附录。
+
 ## [0.2.0-alpha.9] - 2026-10-18
 
 ### Added
