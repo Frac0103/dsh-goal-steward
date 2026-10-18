@@ -20,10 +20,10 @@
 
 ### 覆盖率门禁
 
-Node 22+ 的 CI lane 用 `--test-coverage-*` 直接做阈值门禁（line 99% / branch 90% / function 99%），本地等价命令：
+Node 22+ 的 CI lane 用 `--test-coverage-*` 直接做阈值门禁（line 99% / branch 85% / function 95%），本地等价命令：
 
 ```bash
-node --experimental-test-coverage --test-coverage-lines=99 --test-coverage-branches=90 --test-coverage-functions=99 --test
+node --experimental-test-coverage --test-coverage-lines=99 --test-coverage-branches=85 --test-coverage-functions=95 --test
 ```
 
 Node 20 lane 只跑普通测试（阈值参数在 20 上不完整）。剩余未覆盖分支主要是"真实宿主才会触发的 catch 路径"，不为凑数造测试。
@@ -79,7 +79,7 @@ LlmRuntime → SessionStore → SessionProjectionRegistry → SystemPrompt → T
 
 ### 防御性路径与覆盖率
 
-`test/robustness.test.mjs` 的 12 条专门打宿主"坏形状"：抛错的 session 日志 / surface / requestHeader / goal 服务、stream 缺 finish / provider error / aborted、severity 3 steer 形状等。加上针对性补齐的 config/evidence/apply 用例，覆盖率门禁为 line 99% / branch 90% / function 99%。
+`test/robustness.test.mjs` 的 12 条专门打宿主"坏形状"：抛错的 session 日志 / surface / requestHeader / goal 服务、stream 缺 finish / provider error / aborted、severity 3 steer 形状等。加上针对性补齐的 config/evidence/apply 用例，覆盖率门禁为 line 99% / branch 85% / function 95%。
 
 ### 为什么不用官方 testkit 包
 
@@ -123,7 +123,7 @@ redteam 直接催生了两处代码加固：
 # Node 20 lane
 - run: node --test
 # Node 22 / 24 lane：测试 + 覆盖率门禁
-- run: node --experimental-test-coverage --test-coverage-lines=99 --test-coverage-branches=90 --test-coverage-functions=99 --test
+- run: node --experimental-test-coverage --test-coverage-lines=99 --test-coverage-branches=85 --test-coverage-functions=95 --test
 ```
 
 `--legacy-peer-deps` 会跳过 peer 依赖安装，导致 L3 层因缺少真实服务包而失败——我们实际踩过这个坑。CI 在 Node 20 / 22 / 24 三档跑。
@@ -147,5 +147,5 @@ npm run test:coverage  # 覆盖率报告
 | ~~对抗性 redteam~~ | ✅ 已完成（见第 3 节） |
 | ~~结构性边界测试~~ | ✅ 已完成（`test/redteam/structural-boundary.test.mjs`） |
 | ~~HMR/销毁安全~~ | ✅ 已完成（见第 2 节末：L1 10 条 + L2 7 条 + L3 4 条） |
-| ~~覆盖率门禁~~ | ✅ Node 22+ CI lane：line 99 / branch 90 / function 99 |
+| ~~覆盖率门禁~~ | ✅ Node 22+ CI lane：line 99 / branch 85 / function 95 |
 | **真实模型认证**（可选 env 开启，测误报/漏报率） | 官方 auto-review 的 `DSH_AUTO_REVIEW_CERTIFICATION=1` |

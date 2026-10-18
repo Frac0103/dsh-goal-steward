@@ -187,7 +187,7 @@ npm run check     # 每个 lib/*.js 用 node --check 解析
 npm test          # 197 个测试：纯函数 122 + 对抗性 30 + 假上下文 37 + 真实组装 8
 npm run test:redteam  # 只跑对抗性测试（契约攻击 / 证据注入 / 结构性边界）
 npm run test:compose  # 只跑真实组装层（真实服务 + 真实 AgentLoop，脚本化模型边界）
-npm run test:coverage # 覆盖率报告（Node 22+ CI 用 line 99 / branch 90 / function 99 门禁）
+npm run test:coverage # 覆盖率报告（Node 22+ CI 用 line 99 / branch 85 / function 95 门禁）
 npm run verify    # check + test
 ```
 
