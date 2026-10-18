@@ -52,8 +52,8 @@ AI 执行任务时最贵的失败不是"做错了"，而是"**做完了才发现
 ```bash
 # 在 DSH profile 中，三种来源任选其一
 dsh plugin add "file:D:/project/dsh-goal-steward"
-dsh plugin add "https://github.com/Feac/dsh-goal-steward/releases/latest/download/dsh-goal-steward.tgz"
-dsh plugin add "github:Feac/dsh-goal-steward"
+dsh plugin add "https://github.com/17620395967/dsh-goal-steward/releases/latest/download/dsh-goal-steward.tgz"
+dsh plugin add "github:17620395967/dsh-goal-steward"
 ```
 
 或手工挂载：把仓库放进 profile 的 `node_modules`，并在 profile `cordis.patch.yml` 追加：
@@ -133,4 +133,4 @@ npm run verify  # 两者
 
 ## 许可
 
-[MIT](./LICENSE) © 2026 Feac
+[MIT](./LICENSE) © 2026 Jiahao Ma

@@ -13,7 +13,7 @@
     "governance",
     "management"
   ],
-  "author": "Feac <1780887202@qq.com>",
+  "author": "Jiahao Ma <1780887202@qq.com>",
   "license": "MIT",
   "type": "module",
   "main": "lib/index.js",
