@@ -228,3 +228,7 @@ Reviewer 的评分维度不是玄学，而是第 1 节的类型学中可判定�
 - COSO. *Enterprise Risk Management — Integrated Framework* (2004/2017) — 三道防线
 - PMI. *PMBOK Guide* — 项目章程、变更控制
 - 军事：Auftragstaktik / Commander's Intent（任务式指挥）
+
+---
+
+> 本文件是**设计论证**（为什么这样设计）；完整的**理论登记表**——每条理论的原始出处、落地方式、类比失效边界与证伪指标——见 [theory.md](./theory.md)。

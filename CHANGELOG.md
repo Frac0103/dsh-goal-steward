@@ -2,6 +2,14 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本。
 
+## [0.1.0-alpha.2] - 2026-10-18
+
+### Added
+- `lib/theory.js`：管理学理论登记表（19 条理论、18 条运行时机制、六类偏离与四重独立性的理论来源），作为单一数据源
+- `docs/theory.md`：由 `npm run docs:theory` 从代码生成的完整理论文档，含机制追溯矩阵、类比失效边界与证伪指标
+- `test/theory.test.mjs`：9 条追溯完整性测试——无依据的机制、无机制的引用、断裂的模块路径都会让 CI 失败
+- 治理协议与评审员提示词中加入三道防线 / 例外管理的角色定位
+- `docs/roadmap.md`：0.1–0.5 路线图与明确非目标
 ## [Unreleased]
 
 ### Planned

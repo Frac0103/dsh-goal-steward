@@ -116,6 +116,7 @@
 | `lib/parse.js` | 裁决 JSON 的宽容提取与严格校验 | 否（纯函数） |
 | `lib/reviewer.js` | 评审调用、路由解析、steer 消息构造 | 是 |
 | `lib/audit.js` | `audit.jsonl` 审计落盘（best-effort） | node:fs |
+| `lib/theory.js` | 管理学理论登记表与机制追溯（纯数据；不被运行时引用，供文档生成与 CI 校验） | 否 |
 
 可测试的部分（config/cadence/parse/evidence）全部是纯函数，`npm test` 无需宿主即可运行。
 
@@ -257,3 +258,12 @@ npm run verify  # 两者
 1. 先用 `preset: strict` + `logEvents: true` 观察日志。
 2. 查看 `$DSH_HOME/goal-steward/audit.jsonl` 复盘每次裁决。
 3. Reviewer 提示词在 `lib/prompt.js`，可直接改后热重载（若 profile 启用 HMR）。
+
+## 15. 理论追溯
+
+运行时不 import `lib/theory.js`：提示词与裁决逻辑不应因为引用文献变动而改变行为。理论表通过两条路径约束工程：
+
+1. `scripts/theory-doc.mjs` 从 `lib/theory.js` **生成** [theory.md](./theory.md)，文档不可能与代码脱节；
+2. `test/theory.test.mjs` 在 CI 中校验追溯完整性：每个机制必须有理论依据、每个引用必须落到机制、每个偏离代码必须有理论来源、每个被引用的模块路径必须真实存在。
+
+因此"加一条规则"在工程上的完整定义是：登记机制 → 引用理论 → 落到模块 → 写测试 → 重新生成文档。

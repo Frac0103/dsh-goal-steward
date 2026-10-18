@@ -1,6 +1,6 @@
 {
   "name": "dsh-goal-steward",
-  "version": "0.1.0-alpha.1",
+  "version": "0.1.0-alpha.2",
   "description": "Independent goal governance for DeepSeek Harness: a standing goal charter plus a role-isolated reviewer that audits goal drift at turn boundaries, without micromanaging the executor.",
   "keywords": [
     "dsh",
@@ -46,6 +46,7 @@
   "scripts": {
     "check": "node scripts/check.mjs",
     "test": "node --test",
+    "docs:theory": "node scripts/theory-doc.mjs",
     "verify": "npm run check && npm test"
   }
 }
