@@ -162,7 +162,7 @@ $DSH_HOME/goal-steward/audit.jsonl
 
 ## 状态
 
-`0.2.0-alpha.3` — 早期版本，接口与提示词仍会变。当前已实现：常驻治理协议、回合边界审计、证据包、严格裁决校验、分级 steer、审计流水、三档预设、**双层目标账本（final / current）与目标变更分类**、**89 个测试（含真实组装层）**。
+`0.2.0-alpha.4` — 早期版本，接口与提示词仍会变。当前已实现：常驻治理协议、回合边界审计、证据包、严格裁决校验、分级 steer、审计流水、三档预设、**双层目标账本（final / current）与目标变更分类**、**最终目标重定向的逐字引用闸门**、**120 个测试（纯函数 + 对抗性 + 假上下文 + 真实组装）**。
 
 路线图见 [docs/design.md#12-已知局限与路线图](./docs/design.md#12-已知局限与路线图)：
 账本落盘 → Web UI 治理胶囊 → 真子代理调查 → 多模型隔离与组织级治理。
@@ -172,7 +172,8 @@ $DSH_HOME/goal-steward/audit.jsonl
 ```bash
 npm ci            # 需要 devDependencies（真实宿主服务包，用于真实组装测试）
 npm run check     # 每个 lib/*.js 用 node --check 解析
-npm test          # 89 个测试：纯函数 + 假上下文 + 真实组装
+npm test          # 120 个测试：纯函数 74 + 对抗性 30 + 假上下文 13 + 真实组装 3
+npm run test:redteam  # 只跑对抗性测试（契约攻击 / 证据注入 / 结构性边界）
 npm run test:compose  # 只跑真实组装层（真实服务 + 真实 AgentLoop，脚本化模型边界）
 npm run verify    # check + test
 ```

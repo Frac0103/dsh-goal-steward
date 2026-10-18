@@ -53,6 +53,19 @@
 - devDependencies 版本锁定到宿主同代 `0.2.0-rc.2`
 - 测试总数 89（L1 纯函数 77 + L2 假上下文 10 + L3 真实组装 2）
 
+## [0.2.0-alpha.4] - 2026-10-18
+
+### Added
+- **逐字引用闸门**：`redirected`（改写最终目标）必须由评审员逐字引用用户原话（≥12 字符，去空白/标点匹配），否则拒绝改写、不发声、审计记 `outcome: "guarded"`。证据侧注入无法伪造用户没说过的话。
+- **对抗性测试层** `test/redteam/`（30 条）：契约攻击、证据包注入、结构性边界（静态证明评审员无工具/无网络/无子进程、只有审计模块可写文件、guard 先于 apply、全仓库单一 steer 调用点）
+- 真实组装层新增红线用例：真实回合中伪造的最终目标重定向被拦住，账本 `finalGoal` 不变、不发声
+- `clampText` 剥离 C0/C1 控制字符，防止模型输出向审计 JSONL 或 steer 消息注入换行/终端控制
+- 理论登记新增机制 `redirect-corroboration`（变更控制 + 委托—代理 + 契约理论），`docs/theory.md` 重新生成
+
+### Changed
+- CI 的 Node 20 lane 自动跳过真实组装层（宿主服务包需要 Node ≥22 的 `Promise.withResolvers`）；插件本身仍声明 `engines.node >= 20`
+- 测试总数 120（纯函数/契约 74 + 对抗性 30 + 假上下文 13 + 真实组装 3）
+
 ## [Unreleased]
 
 ### Planned
