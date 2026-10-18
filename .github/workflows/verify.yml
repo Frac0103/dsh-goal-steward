@@ -1,4 +1,4 @@
-name: verify
+﻿name: verify
 
 on:
   push:
@@ -17,7 +17,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
+          cache: npm
+      - name: Install test-only peer dependency
+        run: npm ci --ignore-scripts --legacy-peer-deps
       - name: Syntax check
         run: node scripts/check.mjs
-      - name: Unit tests
+      - name: Unit and mock-host integration tests
         run: node --test

@@ -56,5 +56,9 @@
   "bugs": {
     "url": "https://github.com/Frac0103/dsh-goal-steward/issues"
   },
-  "homepage": "https://github.com/Frac0103/dsh-goal-steward#readme"
+  "homepage": "https://github.com/Frac0103/dsh-goal-steward#readme",
+  "devDependencies": {
+    "@deepseek-ai/cordis": "~4.0.4",
+    "@deepseek-ai/dsh-llm": "^0.2.0-rc.2"
+  }
 }
