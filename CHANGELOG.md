@@ -10,6 +10,16 @@
 - `test/theory.test.mjs`：9 条追溯完整性测试——无依据的机制、无机制的引用、断裂的模块路径都会让 CI 失败
 - 治理协议与评审员提示词中加入三道防线 / 例外管理的角色定位
 - `docs/roadmap.md`：0.1–0.5 路线图与明确非目标
+
+## [0.1.0-alpha.3] - 2026-10-18
+
+### Fixed
+- **稳定层锚点修复**（实机 dogfooding 第一轮发现）：宪章目标此前取「最近 4 条用户消息中最早的一条」，当会话超过 4 条用户消息后，一句两字的"你重新试试"会变成推导出的目标。现在改为从**整个会话的第一条用户指令**（`principal_initial_message`）推导，并新增 `goal_charter_source` 字段（`reviewer-recorded` / `goal-service` / `initial-message`）让评审员知道锚点来源。
+- 评审员提示词新增两条规则：短回复（"继续""go ahead""重新试试"）不能替换开场宪章；当来源是 `initial-message` 且开场指令更完整时，可以返回修正后的宪章。
+
+### Added
+- 6 条锚点回归测试（总测试数 65）。
+
 ## [Unreleased]
 
 ### Planned

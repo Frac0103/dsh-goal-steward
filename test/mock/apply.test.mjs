@@ -193,7 +193,9 @@ test('a drift verdict produces one evidence-backed steering message', async () =
 
   const pack = JSON.parse(call.messages[0].content[0].text);
   assert.equal(pack.turn, 1);
-  assert.match(pack.goal_charter.objective, /goal governance plugin/);
+  assert.equal(pack.principal_initial_message, 'build a goal governance plugin and publish it to GitHub');
+  assert.equal(pack.goal_charter_source, 'initial-message');
+  assert.equal(pack.goal_charter.objective, 'build a goal governance plugin and publish it to GitHub');
   assert.equal(pack.principal_messages[0], 'build a goal governance plugin and publish it to GitHub');
   assert.equal(pack.executor_final_message, 'I added a new unrelated module and some docs.');
   assert.ok(pack.recent_actions.length >= 1);
