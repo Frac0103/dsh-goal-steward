@@ -53,8 +53,16 @@ async function* fakeStream(text) {
   yield { type: 'finish', reason: { kind: 'stop' } };
 }
 
+/** Scripted reply that spends the whole budget on reasoning and emits no text. */
+async function* fakeReasoningStream(text) {
+  yield { type: 'block-start', index: 0, blockType: 'reasoning' };
+  yield { type: 'reasoning-delta', index: 0, text };
+  yield { type: 'block-end', index: 0, block: { type: 'reasoning', text } };
+  yield { type: 'finish', reason: { kind: 'stop' } };
+}
+
 /** Cordis-like context with the minimum surface this plugin touches. */
-function makeContext({ reply, throwOnReview = false } = {}) {
+function makeContext({ reply, throwOnReview = false, reasoningMode = false } = {}) {
   const handlers = new Map();
   const sections = [];
   const disposers = [];
@@ -88,7 +96,7 @@ function makeContext({ reply, throwOnReview = false } = {}) {
       stream(options) {
         llmCalls.push(options);
         if (throwOnReview) throw new Error('provider exploded');
-        return fakeStream(reply);
+        return reasoningMode ? fakeReasoningStream(reply) : fakeStream(reply);
       },
     },
     dispose() {
@@ -260,6 +268,23 @@ test('a malformed verdict is audited and never steers', async () => {
     assert.equal(audit.length, 1);
     assert.equal(audit[0].outcome, 'error');
     assert.equal(audit[0].reason, 'unparseable-verdict');
+    ctx.dispose();
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a reviewer reply that arrives only as reasoning is still parsed', async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'goal-steward-test-'));
+  try {
+    const { ctx, handlers } = makeContext({ reply: DRIFT_REPLY, reasoningMode: true });
+    const { agent, steered } = makeAgent();
+    apply(ctx, { audit: true, auditDir: dir });
+    await stopTurn(handlers, agent, 1);
+    assert.equal(steered.length, 1, 'the finding must survive a reasoning-only reply');
+    const audit = readFileSync(path.join(dir, 'audit.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);
+    assert.equal(audit[0].outcome, 'ok');
+    assert.equal(audit[0].parseSource, 'reasoning');
     ctx.dispose();
   } finally {
     rmSync(dir, { recursive: true, force: true });

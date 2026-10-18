@@ -30,6 +30,12 @@
 - 审计流水新增 `goalChange` / `goalApplied` / `goalRationale` / `goals{revision,lastChange,finalGoal,currentGoal}`
 - 理论登记新增 3 条机制（双层目标、目标变更分类、目标账本），`docs/theory.md` 重新生成
 - 测试 86 个（新增 21 条，覆盖目标账本、变更分类与实机接线）
+## [0.2.0-alpha.2] - 2026-10-18
+
+### Fixed
+- 实机审计出现 `reviewer produced no text`：推理模型的思考会吃掉输出预算，导致没有正文块。现在 `maxReviewTokens` 默认 900 → 2000，并在正文为空时从推理块兜底解析 JSON（审计记录 `parseSource: "reasoning"`）。
+- 新增 1 条回归测试（总计 87 条）
+
 ## [Unreleased]
 
 ### Planned

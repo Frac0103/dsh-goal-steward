@@ -209,7 +209,7 @@ Reviewer 收到的全部输入就是这一段 JSON：
 | `maxSteersPerTurn` | `2` | 每回合 steer 上限 |
 | `maxSteersPerSession` | `12` | 每会话 steer 上限 |
 | `timeoutMs` | `45000` | 单次评审超时 |
-| `maxReviewTokens` | `900` | 评审输出上限 |
+| `maxReviewTokens` | `2000` | 评审输出上限（推理模型的思考也占预算；正文为空时从推理块兜底解析） |
 | `maxInputChars` | `12000` | 证据包上限 |
 | `reviewProvider` / `reviewModel` | 继承执行者 | 指向另一模型即获得"模型隔离" |
 | `temperature` | `0` | 评审采样温度 |
