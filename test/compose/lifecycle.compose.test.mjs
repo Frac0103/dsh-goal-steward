@@ -55,6 +55,23 @@ const DRIFT_REPLY = JSON.stringify({
   goal_update: { change: 'none', final: null, current: null, serves_final: true, rationale: '' },
 });
 
+const REFINE_REPLY = JSON.stringify({
+  verdict: 'on_track',
+  severity: 0,
+  drift_type: null,
+  evidence: '',
+  steer: '',
+  goal_update: {
+    change: 'refined',
+    current: {
+      objective: 'phase two: verify the reviewer in a live conversation',
+      success_criteria: ['an audit record exists'],
+    },
+    serves_final: true,
+    rationale: 'the principal moved from building to verifying',
+  },
+});
+
 /** StreamChunk sequence for one assistant text reply. */
 function textChunks(text) {
   return [
@@ -256,5 +273,30 @@ test('retirement during an in-flight reviewer call drops the finding', async (t)
     assert.equal(capture.main.length, 1, 'a retired reviewer must not reopen the turn');
     assert.equal(pluginMessages().length, 0, 'no audit finding may reach the session log after retirement');
     assert.deepEqual(readAudit(dshHome), [], 'no audit record may be written after retirement');
+  });
+});
+
+test('a reloaded reviewer inherits the ledger from the audit trail', async (t) => {
+  if (!HOST_RUNTIME_AVAILABLE) return t.skip(SKIP_REASON);
+  await withLifecycleComposition({ reviewerReply: REFINE_REPLY }, async ({ capture, turn, mountPlugin, unloadPlugin, dshHome }) => {
+    await turn(MANDATE);
+    assert.equal(capture.reviewer.length, 1);
+    const firstPack = JSON.parse(capture.reviewer[0].messages[0].content[0].text);
+    assert.equal(firstPack.goal_ledger.revision, 1, 'a fresh session anchors at revision 1');
+    assert.equal(readAudit(dshHome).at(-1).goals.revision, 2, 'the refinement is persisted in the audit snapshot');
+
+    await unloadPlugin();
+    await turn('Continue.');
+    assert.equal(capture.reviewer.length, 1, 'the unloaded reviewer does not run');
+
+    await mountPlugin();
+    await turn('Carry on.');
+    assert.equal(capture.reviewer.length, 2, 'the reloaded reviewer re-checks the charter');
+
+    const inherited = JSON.parse(capture.reviewer[1].messages[0].content[0].text);
+    assert.equal(inherited.goal_ledger.revision, 2, 'the refined ledger must be inherited, not re-anchored');
+    assert.equal(inherited.goal_ledger.final.objective, MANDATE);
+    assert.equal(inherited.goal_ledger.current.objective, 'phase two: verify the reviewer in a live conversation');
+    assert.equal(inherited.previous_findings.length, 1, 'earlier findings are inherited too');
   });
 });

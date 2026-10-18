@@ -90,6 +90,23 @@ const DRIFT_REPLY = JSON.stringify({
   goal_update: { change: 'none', final: null, current: null, serves_final: true, rationale: '' },
 });
 
+const REFINE_REPLY = JSON.stringify({
+  verdict: 'on_track',
+  severity: 0,
+  drift_type: null,
+  evidence: '',
+  steer: '',
+  goal_update: {
+    change: 'refined',
+    current: {
+      objective: 'phase two: verify the reviewer in a live conversation',
+      success_criteria: ['an audit record exists'],
+    },
+    serves_final: true,
+    rationale: 'the principal moved from building to verifying',
+  },
+});
+
 /**
  * Cordis-like host with effect-semantics and a name-unique prompt registry.
  *
@@ -284,23 +301,44 @@ test('retirement aborts the in-flight reviewer call and drops its finding', asyn
   });
 });
 
-test('a live reviewer still works before retirement, and a reloaded one starts clean', async () => {
+test('a reloaded instance inherits the ledger but opens a fresh cadence', async () => {
   await withAuditDir(async (dir) => {
-    const host = makeHost({ reply: DRIFT_REPLY });
+    const host = makeHost({ reply: REFINE_REPLY });
     const { agent, steered } = makeAgent();
     apply(host.ctx, { audit: true, auditDir: dir });
 
     await host.emitTurnStopping(agent, 1);
-    assert.equal(steered.length, 1, 'the live instance must steer');
-    assert.equal(existsSync(path.join(dir, 'audit.jsonl')), true);
-
+    assert.equal(steered.length, 0, 'a refinement is legitimate evolution, not drift');
     host.dispose();
+
+    // New office holder, same institution: the ledger and earlier findings come
+    // from the audit trail, but the review budget starts over.
     apply(host.ctx, { audit: true, auditDir: dir });
     await host.emitTurnStopping(agent, 1);
-    assert.equal(steered.length, 2, 'the reloaded instance must govern again');
-    assert.equal(host.llmCalls.length, 2);
+
+    assert.equal(host.llmCalls.length, 2, 'a reloaded instance re-checks the charter once');
+    const pack = JSON.parse(host.llmCalls[1].messages[0].content[0].text);
+    assert.equal(pack.goal_ledger.revision, 2, 'the ledger must be inherited, not re-anchored');
+    assert.equal(pack.goal_ledger.final.objective, 'build a goal governance plugin and publish it to GitHub');
+    assert.equal(pack.goal_ledger.current.objective, 'phase two: verify the reviewer in a live conversation');
+    assert.equal(pack.previous_findings.length, 1, 'earlier findings are inherited too');
     host.dispose();
   });
+});
+
+test('with the audit trail disabled a reloaded instance re-anchors the charter', async () => {
+  const host = makeHost({ reply: REFINE_REPLY });
+  const { agent } = makeAgent();
+  apply(host.ctx, { audit: false });
+  await host.emitTurnStopping(agent, 1);
+  host.dispose();
+
+  apply(host.ctx, { audit: false });
+  await host.emitTurnStopping(agent, 1);
+  const pack = JSON.parse(host.llmCalls[1].messages[0].content[0].text);
+  assert.equal(pack.goal_ledger.revision, 1, 'without a trail the charter is re-anchored from the opening mandate');
+  assert.equal(pack.goal_ledger.current.objective, 'build a goal governance plugin and publish it to GitHub');
+  host.dispose();
 });
 
 test('an agent disposal forgets its cadence state', async () => {

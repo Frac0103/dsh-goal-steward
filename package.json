@@ -1,6 +1,6 @@
 {
   "name": "dsh-goal-steward",
-  "version": "0.2.0-alpha.6",
+  "version": "0.2.0-alpha.7",
   "description": "Independent goal governance for DeepSeek Harness: a standing goal charter plus a role-isolated reviewer that audits goal drift at turn boundaries, without micromanaging the executor.",
   "keywords": [
     "dsh",

@@ -18,10 +18,10 @@
 
 - ✅ 双层目标模型：final（最终目标）/ current（当前目标）分开记账，带 revision 与历史（已完成）
 - ✅ 目标变更分类：refined / phase_advance / redirected / silent_substitution（已完成）
-- 账本落盘：工作区 `.dsh/goal-steward/goals.json`（用户可读、可改、可版本控制）
+- ✅ 审计记录带完整宪章快照 + 跨实例回放：重载/重启后的新实例从审计流水继承账本与历史结论，评审计数另起（已完成，见 design §5.4 / architecture §11.1）
+- 宪章落盘：工作区 `.dsh/goal-steward/goals.json`（用户可读、可改、可版本控制）
 - 宪章变更控制工具：`steward_charter`（读 / 提议 / 确认三段式）
 - 跨会话继承：同一工作区的宪章可被新会话复用
-- 审计记录带宪章 revision，形成可回溯的变更历史
 
 对应理论条目：`change-control`、`contract-theory`、`mbo`。
 

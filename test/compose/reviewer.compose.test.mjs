@@ -195,8 +195,8 @@ test('a real turn assembles the governance prompt and audits the turn boundary',
     assert.equal(audit[0].steered, false);
     assert.equal(audit[0].parseSource, 'text');
     assert.equal(audit[0].goalChange, 'none');
-    assert.equal(audit[0].goals.finalGoal, MANDATE);
-    assert.equal(audit[0].goals.currentGoal, MANDATE);
+    assert.equal(audit[0].goals.final.objective, MANDATE);
+    assert.equal(audit[0].goals.current.objective, MANDATE);
     assert.match(audit[0].route.provider, new RegExp(PROVIDER));
 
     // 4. the session log carries no injected message for a silent audit
@@ -270,6 +270,6 @@ test('a redirected final goal without a principal quote is guarded in a real tur
     assert.equal(audit[0].goalChange, 'redirected');
     assert.equal(audit[0].goalApplied, false);
     assert.equal(audit[0].goals.revision, 1);
-    assert.equal(audit[0].goals.finalGoal, MANDATE);
+    assert.equal(audit[0].goals.final.objective, MANDATE);
   });
 });

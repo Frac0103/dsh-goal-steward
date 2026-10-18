@@ -9,12 +9,12 @@
 
 | 层 | 位置 | 跑什么 | 不需要什么 | 能证明什么 |
 |---|---|---|---|---|
-| **L1 纯函数** | `test/*.test.mjs` | config / cadence / parse / evidence / goals / theory 完整性 | 宿主运行时 | 决策与解析的边界、错误路径、契约自洽 |
-| **L2 假上下文** | `test/mock/` | 手写 fake cordis ctx 驱动 `apply()` | 真实服务 | 事件接线、证据包、steer、审计、fail-open、销毁/重复挂载 |
-| **L3 真实组装** | `test/compose/` | 真实服务 + 真实 AgentLoop + 真实 Agent/Session，只把模型边界换成脚本流 | 模型 API key | 插件在真实宿主里的**端到端行为**（含卸载与重载） |
+| **L1 纯函数** | `test/*.test.mjs` | config / cadence / parse / evidence / goals / restore / theory 完整性 | 宿主运行时 | 决策、解析与回放的边界、错误路径、契约自洽 |
+| **L2 假上下文** | `test/mock/` | 手写 fake cordis ctx 驱动 `apply()` | 真实服务 | 事件接线、证据包、steer、审计、fail-open、销毁/重复挂载/跨实例继承 |
+| **L3 真实组装** | `test/compose/` | 真实服务 + 真实 AgentLoop + 真实 Agent/Session，只把模型边界换成脚本流 | 模型 API key | 插件在真实宿主里的**端到端行为**（含卸载、重载与账本继承） |
 | **L4 实机** | 手工 | 装进 profile 跑真实对话 | — | 真实模型下的提示词效果与误报/漏报 |
 
-当前：**133 个测试**（纯函数/契约 74 + 对抗性 30 + 假上下文 23 + 真实组装 6），`npm test` 一次跑完。
+当前：**145 个测试**（纯函数/契约 84 + 对抗性 30 + 假上下文 24 + 真实组装 7），`npm test` 一次跑完。
 
 另有一层**对抗性测试（redteam）**横跨各层（以 L1 为主，含 1 条 L3 用例），专门攻击"评审员被骗过"这一失败模式，见第 3 节。
 
@@ -45,16 +45,18 @@ LlmRuntime → SessionStore → SessionProjectionRegistry → SystemPrompt → T
 1. 治理协议真正进入**组装后的模型请求**（`GOAL GOVERNANCE` / `TWO GOALS, NOT ONE` / 三道防线）
 2. `agent/turn-stopping` 在**真实回合收口**触发，评审调用走真实 `ctx.llm.stream`，路由继承执行者（provider/model/temperature）
 3. 证据包里的 `goal_ledger` 从开场指令锚定最终目标
-4. 审计 JSONL 真的落盘，含 `outcome / verdict / parseSource / goalChange / goals{finalGoal,currentGoal}`
+4. 审计 JSONL 真的落盘，含 `outcome / verdict / parseSource / goalChange / goals{revision,lastChange,final,current}`
 5. **drift 裁决 → `agent.steer()` → 真实 session 日志出现 plugin-source 消息 → 进入执行者下一次真实模型请求**（整条纠偏闭环）
 6. **生命周期**：卸载后治理协议从组装后的请求里消失、回合不再被评审；重载后两者都恢复；重复挂载只组装一份协议、只评审一次；在飞评审期间卸载，裁决被丢弃（无 plugin 消息、无审计记录）
+7. **继承**：重载后第一次评审的证据包里，账本 revision 与 current 目标来自上一任期（不是重新锚定），历史结论也在
 
-### 生命周期为什么单独测
+### 生命周期与继承为什么单独测
 
-插件实例会被宿主热重载、禁用、关机，也可能因重复配置被挂载两次。这不是部署细节，而是治理语义：**退役的评审员不能继续发声，重复的评审员不能双重审计**。L2 用实现了 cordis effect 语义（收集、逆序销毁、安装失败回滚）与同名 section 拒绝的 fake ctx 覆盖分支；L3 用真实 `systemPrompt` 注册表与真实 `AgentLoop` 验证同样四件事。
+插件实例会被宿主热重载、禁用、关机，也可能因重复配置被挂载两次。这不是部署细节，而是治理语义：**退役的评审员不能继续发声，重复的评审员不能双重审计，新上任的评审员不能把账本重记**。L1 测回放函数本身的契约（两种审计快照形状、坏行、封顶、历史结论顺序）；L2 用实现了 cordis effect 语义（收集、逆序销毁、安装失败回滚）与同名 section 拒绝的 fake ctx 覆盖分支；L3 用真实 `systemPrompt` 注册表与真实 `AgentLoop` 验证同样的事情。
 
-`test/mock/lifecycle.test.mjs` 的 6 条：销毁清理、重复挂载拒绝 + 卸载后可重装、安装期异常 fail-open、卸载中止在飞调用并丢弃裁决、重载后重新治理、agent 销毁后节奏状态清零。
-`test/compose/lifecycle.compose.test.mjs` 的 3 条：真实卸载/重载、真实双挂载只审一次、真实在飞退役。
+`test/restore.test.mjs` 的 10 条：快照重建（新/旧格式、恶意字段封顶）、回放取最新账本、历史结论顺序与上限、坏行跳过、文件缺失 fail-open。
+`test/mock/lifecycle.test.mjs` 的 7 条：销毁清理、重复挂载拒绝 + 卸载后可重装、安装期异常 fail-open、卸载中止在飞调用并丢弃裁决、重载继承账本但新任期新预算、审计关闭时重新锚定、agent 销毁后节奏状态清零。
+`test/compose/lifecycle.compose.test.mjs` 的 4 条：真实卸载/重载、真实双挂载只审一次、真实在飞退役、真实账本继承。
 
 ### 为什么不用官方 testkit 包
 

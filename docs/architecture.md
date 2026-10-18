@@ -227,10 +227,10 @@ Reviewer 收到的全部输入就是这一段 JSON：
 `$DSH_HOME/goal-steward/audit.jsonl`，每行一条，含：
 
 ```json
-{"ts":"2026-10-18T08:00:00.000Z","v":1,"event":"review","outcome":"ok","trigger":"cadence","sessionId":"…","turn":7,"verdict":"drift","severity":2,"driftType":"scope_creep","evidence":"…","steer":"…","steered":true,"route":{"provider":"…","model":"…","source":"session"},"goalChange":"none","goalApplied":false,"goalRationale":"","goals":{"revision":2,"lastChange":"refined","finalGoal":"…","currentGoal":"…"},"elapsedMs":2310,"reviewsSoFar":2,"steersSoFar":1}
+{"ts":"2026-10-18T08:00:00.000Z","v":1,"event":"review","outcome":"ok","trigger":"cadence","sessionId":"…","turn":7,"verdict":"drift","severity":2,"driftType":"scope_creep","evidence":"…","steer":"…","steered":true,"route":{"provider":"…","model":"…","source":"session"},"goalChange":"none","goalApplied":false,"goalRationale":"","goals":{"revision":2,"lastChange":"refined","final":{"objective":"…","success_criteria":["…"],"constraints":[],"non_goals":[]},"current":{"objective":"…","success_criteria":[],"constraints":[],"non_goals":[]}},"elapsedMs":2310,"reviewsSoFar":2,"steersSoFar":1}
 ```
 
-失败与跳过也会记录（`outcome: "skip" | "error"`），以便复盘"该报没报"的情况。
+失败与跳过也会记录（`outcome: "skip" | "error"`），以便复盘"该报没报"的情况。`goals` 里存的是**完整快照**（不只是目标字符串），因此审计流水可以原样重建账本；`goals.final` / `goals.current` 是 0.2.0-alpha.7 起的形状，更早的记录只有 `finalGoal` / `currentGoal` 两个字符串字段，回放模块两种都认。
 
 ## 11. 生命周期：任免与交接
 
@@ -241,17 +241,28 @@ Reviewer 收到的全部输入就是这一段 JSON：
 | 重复挂载 | 第二个实例在注册提示词段时被宿主注册表拒绝（section 名唯一），`apply()` 捕获后记 `installation skipped` 日志并放弃安装；不会出现双评审 |
 | 卸载（HMR / 禁用 / 关机） | 先置 `disposed` 门禁并 `abort()` 在飞评审调用，再移除 `agent/turn-stopping`、`agent/disposed` 监听器与治理提示词段，最后清空会话状态 |
 | 在飞评审遭遇卸载 | 模型调用被中止；即使回复仍然到达，裁决结果被丢弃——不 steer、不写审计 |
-| 重新挂载 | 提示词段可重新注册，会话状态从头建立（新任期不继承旧账本） |
+| 重新挂载 / 重启 | 提示词段可重新注册；会话的**账本与历史结论从审计流水回放继承**，评审计数从头开始（见 11.1） |
 | 安装期任何异常 | fail-open：记 warn 日志并放弃安装，不阻断宿主 |
+
+### 11.1 回放：审计流水就是机构记忆
+
+治理角色会换届，但机构不能失忆。如果新实例把宪章重新锚定到开场指令，用户中途做过的合法重定向就会悄悄回滚，工作会被拿"旧目标"来审判。所以审计流水同时承担第二个职责：**新实例的继承档案**。
+
+- `readAuditRecords(config, sessionId)`（`lib/audit.js`）只读地取出本会话的记录，坏行跳过、文件缺失返回空——回放永远 fail-open；
+- `restoreSessionState(records)`（`lib/restore.js`，纯函数）取**最后一份非空账本快照**和最近 5 条历史结论；
+- 继承是**部分的**：账本 + 历史结论继承，`reviews` / `steers` / `lastReviewTurn` **不继承**——每一任期重新建立预算与节奏。理由：账本是机构档案，预算是一个任期的运营额度；否则一次重启就会让会话预算"静默耗尽"或"无限重置"。
+- 没有审计流水（`audit: false`）时无从回放，会话按开场指令重新锚定，行为与旧版一致。
+- 每个会话每个实例只回放一次（`restored` 标记 + 并发去重），成本与审计文件规模线性相关；审计流水是追加式小文件，正常情况下每会话仅有数条到数十条记录。
 
 不变量（测试锁定）：
 
 1. 每个上下文最多一个治理实例（提示词段名即单例锁）；
 2. 卸载后提示词段与全部监听器都被移除；
 3. 卸载后不再产生 plugin-source 会话消息、不再追加审计记录；
-4. 重载后治理协议与回合边界评审都恢复。
+4. 重载后治理协议与回合边界评审都恢复；
+5. 重载后第一次评审的证据包里，账本 revision 与 `current` 目标来自上一任期（不是重新锚定），历史结论也在。
 
-覆盖：L2 `test/mock/lifecycle.test.mjs`（6 条）与 L3 `test/compose/lifecycle.compose.test.mjs`（3 条，真实注册表 + 真实 AgentLoop）。
+覆盖：L1 `test/restore.test.mjs`（10 条回放契约）、L2 `test/mock/lifecycle.test.mjs`（7 条）、L3 `test/compose/lifecycle.compose.test.mjs`（4 条，真实注册表 + 真实 AgentLoop）。
 
 ## 12. 失败模式：一律 fail-open
 
@@ -285,7 +296,7 @@ Reviewer 收到的全部输入就是这一段 JSON：
 
 ```bash
 npm run check   # 每个 lib/*.js 用 node --check 解析
-npm test        # node --test：133 个测试（L1 纯函数 / L2 假上下文 / redteam / L3 真实组装）
+npm test        # node --test：145 个测试（L1 纯函数 / L2 假上下文 / redteam / L3 真实组装）
 npm run verify  # 两者
 ```
 

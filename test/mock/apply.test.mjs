@@ -370,8 +370,8 @@ test('a refined current goal is written to the ledger and the audit trail', asyn
     assert.equal(audit[0].goalChange, 'refined');
     assert.equal(audit[0].goalApplied, true);
     assert.equal(audit[0].goals.revision, 2);
-    assert.equal(audit[0].goals.finalGoal, 'build a goal governance plugin and publish it to GitHub');
-    assert.equal(audit[0].goals.currentGoal, 'phase two: verify the reviewer in a live conversation');
+    assert.equal(audit[0].goals.final.objective, 'build a goal governance plugin and publish it to GitHub');
+    assert.equal(audit[0].goals.current.objective, 'phase two: verify the reviewer in a live conversation');
     ctx.dispose();
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -391,7 +391,7 @@ test('a silent substitution is flagged as drift and never rewrites the ledger', 
     assert.equal(audit[0].goalChange, 'silent_substitution');
     assert.equal(audit[0].goalApplied, false);
     assert.equal(audit[0].goals.revision, 1, 'the ledger must keep its original revision');
-    assert.equal(audit[0].goals.currentGoal, 'build a goal governance plugin and publish it to GitHub');
+    assert.equal(audit[0].goals.current.objective, 'build a goal governance plugin and publish it to GitHub');
     ctx.dispose();
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -448,7 +448,7 @@ test('a redirect quoting only the opening mandate is guarded', async () => {
     assert.equal(audit[0].outcome, 'guarded');
     assert.equal(audit[0].goalApplied, false);
     assert.equal(audit[0].goals.revision, 1);
-    assert.equal(audit[0].goals.finalGoal, 'build a goal governance plugin and publish it to GitHub');
+    assert.equal(audit[0].goals.final.objective, 'build a goal governance plugin and publish it to GitHub');
     ctx.dispose();
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -468,7 +468,7 @@ test('a redirect quoting a later principal message is applied', async () => {
     assert.equal(audit[0].goalChange, 'redirected');
     assert.equal(audit[0].goalApplied, true);
     assert.equal(audit[0].goals.revision, 2);
-    assert.equal(audit[0].goals.finalGoal, 'maintain the reviewer for my team');
+    assert.equal(audit[0].goals.final.objective, 'maintain the reviewer for my team');
     ctx.dispose();
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -490,7 +490,7 @@ test('the audit record schema is locked', async () => {
       'goals', 'outcome', 'parseSource', 'reviewsSoFar', 'route', 'sessionId', 'severity',
       'steer', 'steerSkipped', 'steered', 'steersSoFar', 'trigger', 'ts', 'turn', 'v', 'verdict',
     ]);
-    assert.deepEqual(Object.keys(record.goals).sort(), ['currentGoal', 'finalGoal', 'lastChange', 'revision']);
+    assert.deepEqual(Object.keys(record.goals).sort(), ['current', 'final', 'lastChange', 'revision']);
     ctx.dispose();
   } finally {
     rmSync(dir, { recursive: true, force: true });

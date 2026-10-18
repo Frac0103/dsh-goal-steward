@@ -54,6 +54,7 @@
 | 带版本的目标账本 | 已实现 | `lib/goals.js`、`lib/cadence.js`、`lib/index.js` | [目标管理（MBO）](#mbo)、[委托—代理问题](#principal-agent)、[审计独立性](#audit-independence) |
 | 诚实汇报规范 | 已实现 | `lib/prompt.js` | [委托—代理问题](#principal-agent) |
 | 评审员仅见证据包 | 已实现 | `lib/evidence.js`、`lib/reviewer.js` | [审计独立性](#audit-independence)、[有限理性 / 满意即止](#bounded-rationality) |
+| 审计流水回放：换届不换账 | 已实现 | `lib/audit.js`、`lib/restore.js`、`lib/index.js` | [约束即契约条款](#contract-theory)、[审计独立性](#audit-independence)、[委托—代理问题](#principal-agent) |
 | 评审员任免与交接（卸载 / 重载） | 已实现 | `lib/index.js` | [委托—代理问题](#principal-agent)、[RACI 权责矩阵](#raci)、[三道防线（COSO 模型）](#three-lines) |
 | 方法不干预规则 | 已实现 | `lib/prompt.js` | [RACI 权责矩阵](#raci)、[任务式指挥 / 指挥官意图](#commanders-intent) |
 | 评审员独立模型 | 计划中 | `lib/config.js` | [审计独立性](#audit-independence) |
