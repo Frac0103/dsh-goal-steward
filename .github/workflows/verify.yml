@@ -24,6 +24,8 @@ jobs:
         run: npm ci --ignore-scripts
       - name: Syntax check
         run: node scripts/check.mjs
+      - name: Documentation link and anchor gate
+        run: node scripts/check-docs.mjs
       - name: Unit, mock-host and real-composition tests (Node 20)
         if: matrix.node == '20'
         run: node --test

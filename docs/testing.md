@@ -115,16 +115,25 @@ redteam 直接催生了两处代码加固：
 生命周期层（第 2 节末）锁定的是另一种失败模式：**治理权残留**。它由 L2 + L3 共同覆盖，其中 L3 的三条用例跑在真实注册表上，不是 mock。
 有一类攻击**无法**被机械防御：恶意指令恰好让评审员产生误判（例如误报 drift）。这属于模型质量问题，只能靠 L4 实机数据与后续的真实模型认证来度量，测试不做虚假承诺。
 
+## 3.5 L4 实机验证（真实宿主 + 真实模型）
+
+除自动化层之外，本项目做过一次可复现的 L4 正样本验证：用 `@deepseek-ai/dsh@0.2.0-rc.2` 的 headless profile 安装**发布 tarball**，以真实 `deepseek-official/deepseek-flash` 跑一个可判定任务。验证了真实加载路径、路由继承、证据包、裁决解析、审计落盘与默认沉默（`steered: false`），延迟约 1.4 s。完整记录（含审计原文与复现步骤）见 [verification/l4-headless-dogfood.md](./verification/l4-headless-dogfood.md)。
+
+**没有**被这次验证覆盖的：真实模型下 drift 判定的误报/漏报率（需要带标注样本的认证 harness），以及多轮长会话下的节奏与预算。
+
 ## 4. CI
 
 ```yaml
 - run: npm ci --ignore-scripts     # 注意：不能加 --legacy-peer-deps
 - run: node scripts/check.mjs
+- run: node scripts/check-docs.mjs  # 文档相对链接 + 锚点门禁
 # Node 20 lane
 - run: node --test
 # Node 22 / 24 lane：测试 + 覆盖率门禁
 - run: node --experimental-test-coverage --test-coverage-lines=99 --test-coverage-branches=85 --test-coverage-functions=95 --test
 ```
+
+推送 `v*` tag 会触发独立的 [release workflow](../.github/workflows/release.yml)：`npm pack` → 从 CHANGELOG 生成 release notes → 上传 `dsh-goal-steward.tgz` 资产。
 
 `--legacy-peer-deps` 会跳过 peer 依赖安装，导致 L3 层因缺少真实服务包而失败——我们实际踩过这个坑。CI 在 Node 20 / 22 / 24 三档跑。
 
@@ -134,7 +143,8 @@ redteam 直接催生了两处代码加固：
 
 ```bash
 npm ci            # 需要 devDependencies（真实服务包）
-npm run verify    # 语法检查 + 全部测试
+npm run verify    # 语法检查 + 文档链接门禁 + 全部测试
+npm run check:docs     # 只跑文档相对链接/锚点校验
 npm run test:compose   # 只跑真实组装层
 npm run test:coverage  # 覆盖率报告
 ```
@@ -148,4 +158,6 @@ npm run test:coverage  # 覆盖率报告
 | ~~结构性边界测试~~ | ✅ 已完成（`test/redteam/structural-boundary.test.mjs`） |
 | ~~HMR/销毁安全~~ | ✅ 已完成（见第 2 节末：L1 10 条 + L2 7 条 + L3 4 条） |
 | ~~覆盖率门禁~~ | ✅ Node 22+ CI lane：line 99 / branch 85 / function 95 |
+| ~~L4 正样本实机~~ | ✅ headless profile + 真实模型跑通（见第 3.5 节） |
 | **真实模型认证**（可选 env 开启，测误报/漏报率） | 官方 auto-review 的 `DSH_AUTO_REVIEW_CERTIFICATION=1` |
+| **Web UI 治理胶囊**（client 半） | 需要完整 client 构建链与浏览器验收，单独排期（见 roadmap） |

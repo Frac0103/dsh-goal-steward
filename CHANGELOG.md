@@ -66,6 +66,23 @@
 - CI 的 Node 20 lane 自动跳过真实组装层（宿主服务包需要 Node ≥22 的 `Promise.withResolvers`）；插件本身仍声明 `engines.node >= 20`
 - 测试总数 120（纯函数/契约 74 + 对抗性 30 + 假上下文 13 + 真实组装 3）
 
+## [0.2.0-alpha.9] - 2026-10-18
+
+### Added
+- **L4 实机验证（真实宿主 + 真实模型）**：用 headless profile 安装**发布 tarball**，真实 `deepseek-official/deepseek-flash` 完成一次完整审计闭环（真实加载路径、路由继承、证据包、解析、审计落盘、默认沉默），延迟约 1.4 s。记录见 `docs/verification/l4-headless-dogfood.md`（含审计原文与复现步骤）。
+- **发布流水线** `.github/workflows/release.yml`：推送 `v*` tag → `npm pack` → 从 CHANGELOG 生成 release notes → 上传 `dsh-goal-steward.tgz` 资产。`v0.2.0-alpha.8` 的资产已补传并验证可下载。
+- **文档链接门禁** `scripts/check-docs.mjs`：9 个 markdown 文件的相对链接与锚点（含生成文档的显式 `<a id>` 锚点）全部校验，纳入 `npm run verify` 与 CI。
+- `scripts/release-notes.mjs`：从 CHANGELOG 提取某个 tag 的发布说明。
+- README 徽章；Desktop / CLI / 手工三种安装路径按真实 CLI 语法重写（Desktop profile 由桌面进程管理，npm CLI 会拒绝操作，需用桌面插件管理器）。
+
+### Changed
+- 安装文档不再使用 `releases/latest` 链接（GitHub 的 latest 会排除 prerelease）；改为显式 tag URL。
+- `npm run verify` = 语法检查 + 文档链接门禁 + 全部测试。
+
+### Verified
+- 197 个测试全绿；覆盖率 line 99.62% / branch 91.69% / function 100%（Node 24）。
+- 发布 tarball 通过 `dsh plugin --profile <scratch> add file:...tgz` 安装并从真实 Host 启动成功。
+
 ## [0.2.0-alpha.8] - 2026-10-18
 
 ### Added

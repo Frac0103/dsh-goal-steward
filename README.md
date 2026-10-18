@@ -1,5 +1,9 @@
 # dsh-goal-steward
 
+[![verify](https://github.com/Frac0103/dsh-goal-steward/actions/workflows/verify.yml/badge.svg)](https://github.com/Frac0103/dsh-goal-steward/actions/workflows/verify.yml)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+[![node: >=20](https://img.shields.io/badge/node-%3E%3D20-brightgreen.svg)](./package.json)
+
 > 给每个对话常设一位**独立的目标评审员**：它确认任务的终极目标，审计推进过程中的目标偏离，但**不限制任务推进**。
 
 **English:** An independent goal-governance layer for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). Every conversation gets a standing goal charter plus a role-isolated reviewer that audits stable-layer alignment at turn boundaries. The reviewer has no tools, no authority over method, and defaults to silence — it steers the executor only when it can cite evidence of drift. The design is derived from management science (MBO, PDCA, management-by-exception, COSO three-lines, RACI, change control) rather than ad-hoc prompt engineering. See [docs/design.md](./docs/design.md).
@@ -105,16 +109,34 @@ AI 执行任务时最贵的失败不是"做错了"，而是"**做完了才发现
 
 ## 安装
 
-> 当前为源码阶段，尚未发布 npm 包；用**本地路径 / tarball / git 地址**安装。
+> 尚未发布 npm 包；以 **tarball / 本地路径 / git 地址** 安装。每次发布 tag 会在 GitHub Release 附带构建好的 `dsh-goal-steward.tgz`。
 
-```bash
-# 在 DSH profile 中，三种来源任选其一
-dsh plugin add "file:D:/project/dsh-goal-steward"
-dsh plugin add "https://github.com/Frac0103/dsh-goal-steward/releases/latest/download/dsh-goal-steward.tgz"
-dsh plugin add "github:Frac0103/dsh-goal-steward"
+### 方式 A：Desktop（图形界面，推荐）
+
+Desktop 的 profile 由桌面进程管理，npm CLI 会拒绝操作 `desktop` profile；请在 **插件管理** 界面里安装，包地址三选一：
+
+```
+file:D:/project/dsh-goal-steward
+https://github.com/Frac0103/dsh-goal-steward/releases/download/v0.2.0-alpha.9/dsh-goal-steward.tgz
+github:Frac0103/dsh-goal-steward
 ```
 
-或手工挂载：把仓库放进 profile 的 `node_modules`，并在 profile `cordis.patch.yml` 追加：
+安装后**重启 DSH** 生效（host 插件与命令面都在启动时装载）。
+
+### 方式 B：CLI profile（web / headless / 自定义）
+
+```bash
+# --profile 是 profile 名；desktop 之外的名字由 CLI 管理
+npx -p @deepseek-ai/dsh dsh plugin --profile <profile> add "file:D:/project/dsh-goal-steward"
+npx -p @deepseek-ai/dsh dsh plugin --profile <profile> add "https://github.com/Frac0103/dsh-goal-steward/releases/download/v0.2.0-alpha.9/dsh-goal-steward.tgz"
+npx -p @deepseek-ai/dsh dsh plugin --profile <profile> add "github:Frac0103/dsh-goal-steward"
+```
+
+> `dsh plugin` 会把参数转发给 profile 目录里的 pnpm，并自动把带 `dsh.bundle` 的包记入 `dsh.profile.bundles`。GitHub 分发获取的是源码而非构建产物：本包无构建步骤（纯 ESM），但 pnpm ≥10 默认拦截 Git 依赖的安装脚本——本包没有 `prepare` 脚本，因此无需放行。
+
+### 方式 C：手工挂载（开发调试）
+
+把仓库放进 profile 的 `node_modules`（或 `pnpm add link:D:/project/dsh-goal-steward`），并在 profile `cordis.patch.yml` 追加：
 
 ```yaml
 - insert:
@@ -124,7 +146,7 @@ dsh plugin add "github:Frac0103/dsh-goal-steward"
         preset: standard
 ```
 
-零配置即可运行：默认 `standard` 档。
+零配置即可运行：默认 `standard` 档。**安装路径已在本机真实验证**：headless profile + 真实模型跑通一次完整审计闭环，记录见 [docs/verification/l4-headless-dogfood.md](./docs/verification/l4-headless-dogfood.md)。
 
 ## 配置
 
@@ -174,7 +196,7 @@ $DSH_HOME/goal-steward/audit.jsonl
 
 ## 状态
 
-`0.2.0-alpha.8` — 早期版本，接口与提示词仍会变。当前已实现：常驻治理协议、回合边界审计、证据包、严格裁决校验、分级 steer、审计流水、三档预设、**双层目标账本（final / current）与目标变更分类**、**最终目标重定向的逐字引用闸门**、**可卸载/可重载的治理实例（退役不发声、重复挂载只审一次）**、**审计流水回放继承（换届不换账）**、**`/steward` 用户主权命令通道（status / goal / why）**、**197 个测试（纯函数 + 对抗性 + 假上下文 + 真实组装）与覆盖率门禁**。
+`0.2.0-alpha.9` — 早期版本，接口与提示词仍会变。当前已实现：常驻治理协议、回合边界审计、证据包、严格裁决校验、分级 steer、审计流水、三档预设、**双层目标账本（final / current）与目标变更分类**、**最终目标重定向的逐字引用闸门**、**可卸载/可重载的治理实例（退役不发声、重复挂载只审一次）**、**审计流水回放继承（换届不换账）**、**`/steward` 用户主权命令通道（status / goal / why）**、**197 个测试（纯函数 + 对抗性 + 假上下文 + 真实组装）与覆盖率门禁**、**真实宿主 + 真实模型的 L4 实机验证**。
 
 路线图见 [docs/design.md#12-已知局限与路线图](./docs/design.md#12-已知局限与路线图)：
 Web UI 治理胶囊 → 真子代理调查 → 多模型隔离与组织级治理。
@@ -184,12 +206,15 @@ Web UI 治理胶囊 → 真子代理调查 → 多模型隔离与组织级治理
 ```bash
 npm ci            # 需要 devDependencies（真实宿主服务包，用于真实组装测试）
 npm run check     # 每个 lib/*.js 用 node --check 解析
+npm run check:docs # 文档相对链接与锚点门禁
 npm test          # 197 个测试：纯函数 122 + 对抗性 30 + 假上下文 37 + 真实组装 8
 npm run test:redteam  # 只跑对抗性测试（契约攻击 / 证据注入 / 结构性边界）
 npm run test:compose  # 只跑真实组装层（真实服务 + 真实 AgentLoop，脚本化模型边界）
 npm run test:coverage # 覆盖率报告（Node 22+ CI 用 line 99 / branch 85 / function 95 门禁）
-npm run verify    # check + test
+npm run verify    # check + check:docs + test
 ```
+
+发布：推送 `v*` tag 触发 [release workflow](./.github/workflows/release.yml)，从 CHANGELOG 生成发布说明并附上 `dsh-goal-steward.tgz`。L4 实机验证记录见 [docs/verification/l4-headless-dogfood.md](./docs/verification/l4-headless-dogfood.md)。
 
 测试分四层（L1 纯函数 / L2 假上下文 / L3 真实组装 / L4 实机），设计依据与后续缺口见 [docs/testing.md](./docs/testing.md)。
 

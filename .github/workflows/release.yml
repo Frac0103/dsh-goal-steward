@@ -1,0 +1,37 @@
+name: release
+
+# A version tag publishes the release: curated notes from CHANGELOG.md plus the
+# installable tarball. The verify workflow already gates the commit on main; a
+# tag points at that commit, so this workflow only packages and publishes.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Pack the plugin tarball
+        run: npm pack
+      - name: Publish the GitHub release and its tarball asset
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "release $GITHUB_REF_NAME already exists; uploading assets"
+          else
+            node scripts/release-notes.mjs "$GITHUB_REF_NAME" > /tmp/release-notes.md
+            gh release create "$GITHUB_REF_NAME" \
+              --title "$GITHUB_REF_NAME" \
+              --notes-file /tmp/release-notes.md \
+              --prerelease
+          fi
+          gh release upload "$GITHUB_REF_NAME" dsh-goal-steward-*.tgz --clobber

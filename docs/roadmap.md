@@ -28,6 +28,7 @@
 ## 0.3 — 可视化与人工监督
 
 - ✅ `/steward` 命令面：`status` / `goal <目标>` / `why`，用户主权命令通道 + 文本版治理状态（已完成，见 architecture §12）
+- ✅ L4 正样本实机验证：headless profile + 真实模型完成一次审计闭环（记录见 [verification/l4-headless-dogfood.md](./verification/l4-headless-dogfood.md)）
 - 会话内"治理状态胶囊"：在轨（绿）/ 存疑（黄）/ 偏离（红）
 - 点击展开审计流水与本次评审证据包
 - 设置页：三档预设切换、预算调整、评审模型选择

@@ -325,9 +325,10 @@ Reviewer 收到的全部输入就是这一段 JSON：
 
 ```bash
 npm run check   # 每个 lib/*.js 用 node --check 解析
+npm run check:docs # 文档相对链接 + 锚点门禁
 npm test        # node --test：197 个测试（L1 纯函数 / L2 假上下文 / redteam / L3 真实组装）
 npm run test:coverage  # 覆盖率报告（Node 22+ 在 CI 中同时做阈值门禁）
-npm run verify  # 前两者
+npm run verify  # 前三者
 ```
 
 调试建议：
