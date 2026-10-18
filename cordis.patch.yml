@@ -1,0 +1,14 @@
+# dsh-goal-steward bundle patch
+#
+# Mounts the goal-steward host plugin into a DSH profile. The plugin:
+#   * registers a standing goal-governance protocol in the system prompt
+#     (zero extra model calls, active in every conversation), and
+#   * audits stable-layer goal alignment at turn boundaries with a
+#     role-isolated reviewer call, steering the executor only when an
+#     evidence-backed drift is found.
+#
+# Zero configuration is required. Every optional knob is documented in
+# README.md and resolves through lib/config.js presets.
+- insert:
+    - id: goal-steward
+      name: 'dsh-goal-steward'

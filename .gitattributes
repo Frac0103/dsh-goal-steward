@@ -1,0 +1,4 @@
+* text=auto eol=lf
+*.[Jj][Pp][Gg] binary
+*.[Pp][Nn][Gg] binary
+*.tgz binary
