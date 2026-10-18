@@ -48,5 +48,13 @@
     "test": "node --test",
     "docs:theory": "node scripts/theory-doc.mjs",
     "verify": "npm run check && npm test"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Frac0103/dsh-goal-steward.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Frac0103/dsh-goal-steward/issues"
+  },
+  "homepage": "https://github.com/Frac0103/dsh-goal-steward#readme"
 }
