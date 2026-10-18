@@ -10,11 +10,11 @@
 | 层 | 位置 | 跑什么 | 不需要什么 | 能证明什么 |
 |---|---|---|---|---|
 | **L1 纯函数** | `test/*.test.mjs` | config / cadence / parse / evidence / goals / theory 完整性 | 宿主运行时 | 决策与解析的边界、错误路径、契约自洽 |
-| **L2 假上下文** | `test/mock/` | 手写 fake cordis ctx 驱动 `apply()` | 真实服务 | 事件接线、证据包、steer、审计、fail-open |
-| **L3 真实组装** | `test/compose/` | 真实服务 + 真实 AgentLoop + 真实 Agent/Session，只把模型边界换成脚本流 | 模型 API key | 插件在真实宿主里的**端到端行为** |
+| **L2 假上下文** | `test/mock/` | 手写 fake cordis ctx 驱动 `apply()` | 真实服务 | 事件接线、证据包、steer、审计、fail-open、销毁/重复挂载 |
+| **L3 真实组装** | `test/compose/` | 真实服务 + 真实 AgentLoop + 真实 Agent/Session，只把模型边界换成脚本流 | 模型 API key | 插件在真实宿主里的**端到端行为**（含卸载与重载） |
 | **L4 实机** | 手工 | 装进 profile 跑真实对话 | — | 真实模型下的提示词效果与误报/漏报 |
 
-当前：**124 个测试**（纯函数/契约 74 + 对抗性 30 + 假上下文 17 + 真实组装 3），`npm test` 一次跑完。
+当前：**133 个测试**（纯函数/契约 74 + 对抗性 30 + 假上下文 23 + 真实组装 6），`npm test` 一次跑完。
 
 另有一层**对抗性测试（redteam）**横跨各层（以 L1 为主，含 1 条 L3 用例），专门攻击"评审员被骗过"这一失败模式，见第 3 节。
 
@@ -47,6 +47,14 @@ LlmRuntime → SessionStore → SessionProjectionRegistry → SystemPrompt → T
 3. 证据包里的 `goal_ledger` 从开场指令锚定最终目标
 4. 审计 JSONL 真的落盘，含 `outcome / verdict / parseSource / goalChange / goals{finalGoal,currentGoal}`
 5. **drift 裁决 → `agent.steer()` → 真实 session 日志出现 plugin-source 消息 → 进入执行者下一次真实模型请求**（整条纠偏闭环）
+6. **生命周期**：卸载后治理协议从组装后的请求里消失、回合不再被评审；重载后两者都恢复；重复挂载只组装一份协议、只评审一次；在飞评审期间卸载，裁决被丢弃（无 plugin 消息、无审计记录）
+
+### 生命周期为什么单独测
+
+插件实例会被宿主热重载、禁用、关机，也可能因重复配置被挂载两次。这不是部署细节，而是治理语义：**退役的评审员不能继续发声，重复的评审员不能双重审计**。L2 用实现了 cordis effect 语义（收集、逆序销毁、安装失败回滚）与同名 section 拒绝的 fake ctx 覆盖分支；L3 用真实 `systemPrompt` 注册表与真实 `AgentLoop` 验证同样四件事。
+
+`test/mock/lifecycle.test.mjs` 的 6 条：销毁清理、重复挂载拒绝 + 卸载后可重装、安装期异常 fail-open、卸载中止在飞调用并丢弃裁决、重载后重新治理、agent 销毁后节奏状态清零。
+`test/compose/lifecycle.compose.test.mjs` 的 3 条：真实卸载/重载、真实双挂载只审一次、真实在飞退役。
 
 ### 为什么不用官方 testkit 包
 
@@ -78,6 +86,8 @@ redteam 直接催生了两处代码加固：
 - **重定向佐证源**：开场指令不能佐证重定向，必须引用开场指令之后的用户消息（两条端到端用例：只用开场白 → `guarded`；引用后续消息 → 账本 revision +1）；
 - **审计 schema 快照**：`audit.jsonl` 的字段集合被断言锁定，字段增删会立刻让测试变红；
 - **审计不可写 fail-open**：审计目录不可创建时，评审与纠偏照常进行，回合不被打断。
+
+生命周期层（第 2 节末）锁定的是另一种失败模式：**治理权残留**。它由 L2 + L3 共同覆盖，其中 L3 的三条用例跑在真实注册表上，不是 mock。
 有一类攻击**无法**被机械防御：恶意指令恰好让评审员产生误判（例如误报 drift）。这属于模型质量问题，只能靠 L4 实机数据与后续的真实模型认证来度量，测试不做虚假承诺。
 
 ## 4. CI
@@ -106,7 +116,7 @@ npm run test:compose   # 只跑真实组装层
 |---|---|
 | **审计快照**（golden JSONL） | 官方 `session-snapshot`：录制回放当 expected |
 | ~~对抗性 redteam~~ | ✅ 已完成（见第 3 节） |
-| **结构性边界测试**（静态扫描证明 reviewer 无写通道） | clearai-dsh 的 `authority-boundary.test.mjs` |
-| **HMR/销毁安全**（dispose 后 section 与 listener 清理） | 官方要求每个 registry 必测 |
+| ~~结构性边界测试~~ | ✅ 已完成（`test/redteam/structural-boundary.test.mjs`） |
+| ~~HMR/销毁安全~~ | ✅ 已完成（见第 2 节末：L2 6 条 + L3 3 条） |
 | **真实模型认证**（可选 env 开启，测误报/漏报率） | 官方 auto-review 的 `DSH_AUTO_REVIEW_CERTIFICATION=1` |
 | **覆盖率** | Node 内置 `node --experimental-test-coverage` |
