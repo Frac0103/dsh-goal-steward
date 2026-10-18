@@ -24,5 +24,17 @@ jobs:
         run: npm ci --ignore-scripts
       - name: Syntax check
         run: node scripts/check.mjs
-      - name: Unit, mock-host and real-composition tests
+      - name: Unit, mock-host and real-composition tests (Node 20)
+        if: matrix.node == '20'
         run: node --test
+      # Node 22.8+ can enforce coverage thresholds. The line/function gates are
+      # tight on purpose; the branch gate leaves room for defensive catch paths
+      # that only a real host failure could exercise.
+      - name: Tests with coverage gates (Node 22+)
+        if: matrix.node != '20'
+        run: >-
+          node --experimental-test-coverage
+          --test-coverage-lines=99
+          --test-coverage-branches=90
+          --test-coverage-functions=99
+          --test

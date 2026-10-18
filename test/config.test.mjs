@@ -50,3 +50,61 @@ test('unknown keys do not leak into the resolved config', () => {
 test('reviewEveryTurns: 0 survives resolution', () => {
   assert.equal(resolveConfig({ reviewEveryTurns: 0 }).reviewEveryTurns, 0);
 });
+
+test('wrong-typed fields are ignored instead of corrupting the config', () => {
+  const config = resolveConfig({
+    enabled: 'yes',
+    audit: 1,
+    logEvents: null,
+    includeChildSessions: 'true',
+    reviewProvider: 42,
+    reviewModel: '   ',
+    auditDir: {},
+    preset: 7,
+    maxReviewsPerSession: Number.POSITIVE_INFINITY,
+    minReviewStepSteps: -1,
+    maxSteersPerSession: 1e9,
+  });
+  assert.equal(config.enabled, true, 'a non-boolean kill switch is ignored');
+  assert.equal(config.audit, true);
+  assert.equal(config.logEvents, true);
+  assert.equal(config.includeChildSessions, false);
+  assert.equal(config.reviewProvider, undefined);
+  assert.equal(config.reviewModel, undefined, 'a blank route is no route');
+  assert.equal(config.auditDir, undefined);
+  assert.equal(config.preset, 'standard');
+  assert.equal(config.maxReviewsPerSession, 60, 'non-finite numbers fall back to the preset default');
+  assert.equal(config.minReviewStepSteps, 0);
+  assert.equal(config.maxSteersPerSession, 10_000, 'out-of-range numbers clamp instead of throwing');
+});
+
+test('every numeric field is clamped at both ends', () => {
+  const low = resolveConfig({
+    reviewEveryTurns: -5,
+    maxTurnGap: 0,
+    steerSeverity: -1,
+    timeoutMs: 1,
+    maxInputChars: 1,
+    freeze: undefined,
+  });
+  assert.equal(low.reviewEveryTurns, 0);
+  assert.equal(low.maxTurnGap, 1);
+  assert.equal(low.steerSeverity, 0);
+  assert.equal(low.timeoutMs, 1_000);
+  assert.equal(low.maxInputChars, 1_000);
+
+  const high = resolveConfig({
+    reviewEveryTurns: 1000,
+    maxTurnGap: 1000,
+    steerSeverity: 9,
+    timeoutMs: 10_000_000,
+    maxInputChars: 10_000_000,
+    maxReviewTokens: 1_000_000,
+  });
+  assert.equal(high.reviewEveryTurns, 100);
+  assert.equal(high.maxTurnGap, 100);
+  assert.equal(high.steerSeverity, 4);
+  assert.equal(high.timeoutMs, 600_000);
+  assert.equal(high.maxInputChars, 200_000);
+  assert.equal(high.maxReviewTokens, 32_000);
+});

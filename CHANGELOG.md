@@ -66,6 +66,24 @@
 - CI 的 Node 20 lane 自动跳过真实组装层（宿主服务包需要 Node ≥22 的 `Promise.withResolvers`）；插件本身仍声明 `engines.node >= 20`
 - 测试总数 120（纯函数/契约 74 + 对抗性 30 + 假上下文 13 + 真实组装 3）
 
+## [0.2.0-alpha.8] - 2026-10-18
+
+### Added
+- **`/steward` 用户主权命令通道**（宿主存在 `commands` 服务时自动安装，UI-less 宿主自动缺席）：
+  - `/steward` · `/steward status`：最终目标 / 当前目标 / 成功判据 / 硬约束 / revision / 本实例评审与发声次数 / 最近发现 / 审计文件位置；
+  - `/steward goal <新目标>`：由用户直接设定最终目标（revision +1、当前目标同步重置），写入 `event: "command"`、`trigger: "principal-command"` 的审计记录；
+  - `/steward why`：最近 5 条评审结论；
+  - 命令不产生模型消息、`recordInput: false`、永不抛错、`ctx.inject(['commands'])` 迟到绑定、卸载即注销；目标文本走与评审员相同的归一化（长度 / 控制字符 / 列表上限）。
+- **覆盖率门禁**：Node 22/24 CI lane 用 `--test-coverage-lines=99 --test-coverage-branches=90 --test-coverage-functions=99` 跑测试；新增 `npm run test:coverage`。
+- **防御性路径测试层** `test/robustness.test.mjs`（12 条）：抛错的会话日志 / surface / requestHeader / goal 服务、stream 缺 finish / provider error / aborted、severity 3 steer 形状等。
+- 理论登记新增机制 `principal-command-channel`（委托—代理 + RACI + 变更控制），`docs/theory.md` 重新生成。
+- 设计文档新增 §5.5「用户主权：给委托人一个直接入口」，架构文档新增 §12「命令面：/steward」。
+
+### Changed
+- 测试总数 **197**（纯函数/契约 122 + 对抗性 30 + 假上下文 37 + 真实组装 8），覆盖率 99.62% line / 91.39% branch / 100% function。
+- devDependencies 增加 `@deepseek-ai/dsh-commands@0.2.0-rc.2`（真实组装层挂载生产 CommandsRuntime）。
+- `npm run test:compose` 覆盖三个真实组装套件。
+
 ## [0.2.0-alpha.7] - 2026-10-18
 
 ### Added

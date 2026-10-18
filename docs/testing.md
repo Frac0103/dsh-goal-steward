@@ -9,14 +9,24 @@
 
 | 层 | 位置 | 跑什么 | 不需要什么 | 能证明什么 |
 |---|---|---|---|---|
-| **L1 纯函数** | `test/*.test.mjs` | config / cadence / parse / evidence / goals / restore / theory 完整性 | 宿主运行时 | 决策、解析与回放的边界、错误路径、契约自洽 |
-| **L2 假上下文** | `test/mock/` | 手写 fake cordis ctx 驱动 `apply()` | 真实服务 | 事件接线、证据包、steer、审计、fail-open、销毁/重复挂载/跨实例继承 |
-| **L3 真实组装** | `test/compose/` | 真实服务 + 真实 AgentLoop + 真实 Agent/Session，只把模型边界换成脚本流 | 模型 API key | 插件在真实宿主里的**端到端行为**（含卸载、重载与账本继承） |
+| **L1 纯函数** | `test/*.test.mjs` | config / cadence / parse / evidence / goals / restore / commands / theory 完整性 / 防御性路径 | 宿主运行时 | 决策、解析、回放与命令的边界、错误路径、契约自洽 |
+| **L2 假上下文** | `test/mock/` | 手写 fake cordis ctx 驱动 `apply()` | 真实服务 | 事件接线、证据包、steer、审计、fail-open、销毁/重复挂载/跨实例继承/命令接线 |
+| **L3 真实组装** | `test/compose/` | 真实服务 + 真实 AgentLoop + 真实 Agent/Session（命令层用真实 CommandsRuntime），只把模型边界换成脚本流 | 模型 API key | 插件在真实宿主里的**端到端行为**（含卸载、重载、账本继承、用户命令） |
 | **L4 实机** | 手工 | 装进 profile 跑真实对话 | — | 真实模型下的提示词效果与误报/漏报 |
 
-当前：**145 个测试**（纯函数/契约 84 + 对抗性 30 + 假上下文 24 + 真实组装 7），`npm test` 一次跑完。
+当前：**197 个测试**（纯函数/契约 122 + 对抗性 30 + 假上下文 37 + 真实组装 8），`npm test` 一次跑完。
 
 另有一层**对抗性测试（redteam）**横跨各层（以 L1 为主，含 1 条 L3 用例），专门攻击"评审员被骗过"这一失败模式，见第 3 节。
+
+### 覆盖率门禁
+
+Node 22+ 的 CI lane 用 `--test-coverage-*` 直接做阈值门禁（line 99% / branch 90% / function 99%），本地等价命令：
+
+```bash
+node --experimental-test-coverage --test-coverage-lines=99 --test-coverage-branches=90 --test-coverage-functions=99 --test
+```
+
+Node 20 lane 只跑普通测试（阈值参数在 20 上不完整）。剩余未覆盖分支主要是"真实宿主才会触发的 catch 路径"，不为凑数造测试。
 
 ## 2. L3 真实组装测试怎么做的
 
@@ -49,6 +59,7 @@ LlmRuntime → SessionStore → SessionProjectionRegistry → SystemPrompt → T
 5. **drift 裁决 → `agent.steer()` → 真实 session 日志出现 plugin-source 消息 → 进入执行者下一次真实模型请求**（整条纠偏闭环）
 6. **生命周期**：卸载后治理协议从组装后的请求里消失、回合不再被评审；重载后两者都恢复；重复挂载只组装一份协议、只评审一次；在飞评审期间卸载，裁决被丢弃（无 plugin 消息、无审计记录）
 7. **继承**：重载后第一次评审的证据包里，账本 revision 与 current 目标来自上一任期（不是重新锚定），历史结论也在
+8. **用户命令**：真实 `CommandsRuntime` 解析 `/steward goal <目标>`，账本 revision +1 并落审计；下一次真实评审以该目标为最终目标；命令行与命令结果都不进入任何模型请求；卸载插件后命令不再解析
 
 ### 生命周期与继承为什么单独测
 
@@ -57,6 +68,18 @@ LlmRuntime → SessionStore → SessionProjectionRegistry → SystemPrompt → T
 `test/restore.test.mjs` 的 10 条：快照重建（新/旧格式、恶意字段封顶）、回放取最新账本、历史结论顺序与上限、坏行跳过、文件缺失 fail-open。
 `test/mock/lifecycle.test.mjs` 的 7 条：销毁清理、重复挂载拒绝 + 卸载后可重装、安装期异常 fail-open、卸载中止在飞调用并丢弃裁决、重载继承账本但新任期新预算、审计关闭时重新锚定、agent 销毁后节奏状态清零。
 `test/compose/lifecycle.compose.test.mjs` 的 4 条：真实卸载/重载、真实双挂载只审一次、真实在飞退役、真实账本继承。
+
+### 命令面怎么测
+
+命令是"人机入口"，它自己不能成为新的攻击面：文本要归一化、审计要留痕、卸载要注销、UI 不能崩。
+
+`test/commands.test.mjs` 的 22 条：子命令语法、账本 revision/history 语义、目标封顶与控制字符、status/why 渲染、审计失败仍成功、退役实例拒绝执行、内部异常转错误文本。
+`test/mock/commands.test.mjs` 的 5 条：commands 服务缺失时评审员照常安装、命令注册、`/steward goal` → 下一次评审证据包锚点、命令审计 schema 锁定、status 文本。
+`test/compose/commands.compose.test.mjs` 的 1 条：真实 `CommandsRuntime` + 真实 `AgentLoop` 的端到端（含迟到绑定与卸载注销）。
+
+### 防御性路径与覆盖率
+
+`test/robustness.test.mjs` 的 12 条专门打宿主"坏形状"：抛错的 session 日志 / surface / requestHeader / goal 服务、stream 缺 finish / provider error / aborted、severity 3 steer 形状等。加上针对性补齐的 config/evidence/apply 用例，覆盖率门禁为 line 99% / branch 90% / function 99%。
 
 ### 为什么不用官方 testkit 包
 
@@ -97,12 +120,15 @@ redteam 直接催生了两处代码加固：
 ```yaml
 - run: npm ci --ignore-scripts     # 注意：不能加 --legacy-peer-deps
 - run: node scripts/check.mjs
+# Node 20 lane
 - run: node --test
+# Node 22 / 24 lane：测试 + 覆盖率门禁
+- run: node --experimental-test-coverage --test-coverage-lines=99 --test-coverage-branches=90 --test-coverage-functions=99 --test
 ```
 
 `--legacy-peer-deps` 会跳过 peer 依赖安装，导致 L3 层因缺少真实服务包而失败——我们实际踩过这个坑。CI 在 Node 20 / 22 / 24 三档跑。
 
-注意：宿主服务包使用了 `Promise.withResolvers`（Node ≥ 22），因此 **Node 20 lane 会自动跳过 L3 层**（`t.skip` 并给出原因）；插件本身仍声明 `engines.node >= 20`，跳过的只是这一测试层。
+注意：宿主服务包使用了 `Promise.withResolvers`（Node ≥ 22），因此 **Node 20 lane 会自动跳过 L3 层**（`t.skip` 并给出原因）；插件本身仍声明 `engines.node >= 20`，跳过的只是这一测试层。覆盖率阈值参数需要 Node 22.8+，所以只在 22/24 lane 启用。
 
 ## 5. 本地运行
 
@@ -110,6 +136,7 @@ redteam 直接催生了两处代码加固：
 npm ci            # 需要 devDependencies（真实服务包）
 npm run verify    # 语法检查 + 全部测试
 npm run test:compose   # 只跑真实组装层
+npm run test:coverage  # 覆盖率报告
 ```
 
 ## 6. 后续要补的测试（调研结论）
@@ -119,6 +146,6 @@ npm run test:compose   # 只跑真实组装层
 | **审计快照**（golden JSONL） | 官方 `session-snapshot`：录制回放当 expected |
 | ~~对抗性 redteam~~ | ✅ 已完成（见第 3 节） |
 | ~~结构性边界测试~~ | ✅ 已完成（`test/redteam/structural-boundary.test.mjs`） |
-| ~~HMR/销毁安全~~ | ✅ 已完成（见第 2 节末：L2 6 条 + L3 3 条） |
+| ~~HMR/销毁安全~~ | ✅ 已完成（见第 2 节末：L1 10 条 + L2 7 条 + L3 4 条） |
+| ~~覆盖率门禁~~ | ✅ Node 22+ CI lane：line 99 / branch 90 / function 99 |
 | **真实模型认证**（可选 env 开启，测误报/漏报率） | 官方 auto-review 的 `DSH_AUTO_REVIEW_CERTIFICATION=1` |
-| **覆盖率** | Node 内置 `node --experimental-test-coverage` |

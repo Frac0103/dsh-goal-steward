@@ -103,6 +103,7 @@
 | `session.header.parentSession` | 识别子代理会话（默认不审计） | `lib/reviewer.js` |
 | `ctx.get('goals')`（可选） | 读取持久化目标作为稳定层锚点 | `lib/reviewer.js` |
 | `ctx.on('agent/disposed')` | 清理会话状态 | `lib/index.js` |
+| `ctx.inject(['commands'])`（可选） + `ctx.commands.register()` | 注册 `/steward` 人类命令：直接读写治理状态，不经过模型 | `lib/index.js` / `lib/commands.js` |
 
 ## 5. 模块职责
 
@@ -116,10 +117,12 @@
 | `lib/cadence.js` | 审计节奏与说话预算的状态机 | 否（纯函数） |
 | `lib/parse.js` | 裁决 JSON 的宽容提取与严格校验 | 否（纯函数） |
 | `lib/reviewer.js` | 评审调用、路由解析、steer 消息构造 | 是 |
-| `lib/audit.js` | `audit.jsonl` 审计落盘（best-effort） | node:fs |
+| `lib/audit.js` | `audit.jsonl` 审计落盘与回放读取（best-effort / fail-open） | node:fs |
+| `lib/restore.js` | 审计记录回放为会话状态（账本 + 历史结论） | 否（纯函数） |
+| `lib/commands.js` | `/steward` 人类命令：状态视图、用户主权设定最终目标 | 否（纯函数 + 注入式宿主接口） |
 | `lib/theory.js` | 管理学理论登记表与机制追溯（纯数据；不被运行时引用，供文档生成与 CI 校验） | 否 |
 
-可测试的部分（config/cadence/parse/evidence）全部是纯函数，`npm test` 无需宿主即可运行。
+可测试的部分（config/cadence/parse/evidence/goals/restore/commands 的纯逻辑）全部是纯函数，`npm test` 无需宿主即可运行。
 
 ## 6. 证据包格式
 
@@ -260,11 +263,37 @@ Reviewer 收到的全部输入就是这一段 JSON：
 2. 卸载后提示词段与全部监听器都被移除；
 3. 卸载后不再产生 plugin-source 会话消息、不再追加审计记录；
 4. 重载后治理协议与回合边界评审都恢复；
-5. 重载后第一次评审的证据包里，账本 revision 与 `current` 目标来自上一任期（不是重新锚定），历史结论也在。
+5. 重载后第一次评审的证据包里，账本 revision 与 `current` 目标来自上一任期（不是重新锚定），历史结论也在；
+6. 卸载后 `/steward` 命令一并注销，退役实例不再有任何人机控制面。
 
 覆盖：L1 `test/restore.test.mjs`（10 条回放契约）、L2 `test/mock/lifecycle.test.mjs`（7 条）、L3 `test/compose/lifecycle.compose.test.mjs`（4 条，真实注册表 + 真实 AgentLoop）。
 
-## 12. 失败模式：一律 fail-open
+## 12. 命令面：/steward（用户主权通道）
+
+最终目标的变更只有两种合法来源：**用户自己的话**，或者**评审员引用用户自己的话**。前者此前只有"否决权"——评审员的 `redirected` 会被逐字引用闸门拦下，但用户没有一个直接写下新目标的入口。`/steward` 补上了这个入口。
+
+命令由宿主 `commands` 服务承载：交互式适配器把 `/steward ...` 交给 handler 执行，**不产生模型消息**，结果文本由 UI 渲染在会话之外。因此它与"执行者说服评审员改目标"在机制上不可能混淆：命令通道只对人有入口。
+
+| 子命令 | 行为 |
+|---|---|
+| `/steward` · `/steward status` | 打印最终目标 / 当前目标 / 成功判据 / 硬约束 / revision / 本实例评审与发声次数 / 最近发现 / 审计文件位置 |
+| `/steward goal <新目标>` | 用户直接把最终目标写入账本：`revision + 1`、`lastChange: redirected`、当前目标同步重置；写一条 `event: "command"`、`trigger: "principal-command"` 的审计记录 |
+| `/steward why` | 打印最近 5 条历史结论（旧→新） |
+| `/steward help` | 与 status 相同的用法提示 |
+
+工程约束：
+
+- 命令是**可选依赖**：`ctx.inject(['commands'])` 迟到绑定，UI-less 宿主不挂载命令注册表时评审员照常工作；卸载插件时命令随子 fiber 一起注销（L3 断言：退役实例的 `/steward` 不再解析）。
+- 命令**永不抛错**：任何内部异常都转换为 `{kind:'error', text}`，不会在 UI 里变成崩溃。
+- `recordInput: false`：命令原文不重复写进会话日志，审计记录才是权威副本。
+- 目标文本经过与评审员输出相同的 `normalizeGoal`（长度 / 控制字符 / 列表上限），命令通道不成为注入的新入口。
+- 审计写入失败时命令仍成功，但明确告知"只在本实例内存生效，重启会回退"。
+
+不变量（测试锁定）：命令注册于 `/steward` 名字下；`goal` 写入账本与审计；下一次真实评审的证据包以命令设定的目标为准；命令文本不出现在任何模型请求里；卸载后命令不可解析。
+
+覆盖：`test/commands.test.mjs`（22 条语法/账本/渲染/失败路径）、`test/mock/commands.test.mjs`（5 条接线 + 审计 schema）、`test/compose/commands.compose.test.mjs`（真实 CommandsRuntime + AgentLoop 端到端）。
+
+## 13. 失败模式：一律 fail-open
 
 | 失败 | 行为 |
 |---|---|
@@ -281,23 +310,24 @@ Reviewer 收到的全部输入就是这一段 JSON：
 
 **原则**：审查者可以让执行者停下来，但审查者自己不能把对话弄挂。
 
-## 13. 隐私与数据边界
+## 14. 隐私与数据边界
 
 - 证据包只在本机内存中构造，通过宿主已配置的模型路由发出；不额外落盘。
 - 审计文件只在本机 `$DSH_HOME` 下，不联网。
 - 不读取工作区文件内容；工具调用只记录 `name + 参数摘要`。
 - 子代理会话默认不审计，避免二次采集。
 
-## 14. 成本
+## 15. 成本
 
 一次评审 ≈ 1.2k–2k 输入 token + ≤2k 输出 token（默认 `maxReviewTokens: 2000`，推理模型的思考也计入）。标准档（每 3 回合 + 首轮 + 强制间隔）在 20 回合的对话里约 6–8 次评审。全部有硬上限，可在配置里调到 0。
 
-## 15. 开发与测试
+## 16. 开发与测试
 
 ```bash
 npm run check   # 每个 lib/*.js 用 node --check 解析
-npm test        # node --test：145 个测试（L1 纯函数 / L2 假上下文 / redteam / L3 真实组装）
-npm run verify  # 两者
+npm test        # node --test：197 个测试（L1 纯函数 / L2 假上下文 / redteam / L3 真实组装）
+npm run test:coverage  # 覆盖率报告（Node 22+ 在 CI 中同时做阈值门禁）
+npm run verify  # 前两者
 ```
 
 调试建议：
@@ -306,7 +336,7 @@ npm run verify  # 两者
 2. 查看 `$DSH_HOME/goal-steward/audit.jsonl` 复盘每次裁决。
 3. Reviewer 提示词在 `lib/prompt.js`，可直接改后热重载（若 profile 启用 HMR；插件卸载/重载安全性有 L2/L3 测试覆盖，见第 11 节）。
 
-## 16. 理论追溯
+## 17. 理论追溯
 
 运行时不 import `lib/theory.js`：提示词与裁决逻辑不应因为引用文献变动而改变行为。理论表通过两条路径约束工程：
 

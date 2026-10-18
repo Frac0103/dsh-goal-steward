@@ -118,3 +118,34 @@ test('the pack carries the two-level goal ledger separately from recent messages
   assert.equal(parsed.goal_ledger.final.objective, 'the original objective');
   assert.equal(parsed.goal_ledger.current.objective, 'the original objective');
 });
+
+test('an over-budget pack drops action digests before principal messages', () => {
+  const long = (label) => `${label} ${'y'.repeat(140)}`;
+  const pack = buildEvidencePack({
+    turn: 9,
+    initialMessage: 'the original objective',
+    humanIntent: [long('message one'), long('message two'), long('message three'), long('message four')],
+    recentActions: Array.from({ length: 6 }, (_, index) => long(`turn 9 step ${index}: edit {"file_path":"very/long/path"}`)),
+    finalMessage: 'done',
+    maxChars: 700,
+  });
+  const parsed = JSON.parse(pack);
+  assert.ok(pack.length <= 700, 'the pack respects its character budget');
+  assert.equal(parsed.principal_initial_message, 'the original objective', 'the stable layer is never dropped');
+  assert.equal(parsed.executor_final_message, 'done', 'the final message is never dropped');
+  assert.equal(parsed.recent_actions.length, 0, 'action digests are dropped first');
+  assert.equal(parsed.principal_messages.at(-1), long('message four'), 'the newest principal message survives');
+  assert.ok(parsed.principal_messages.length < 4, 'older principal messages are dropped after the actions');
+});
+
+test('an invalid budget falls back to the default instead of dropping evidence', () => {
+  const pack = buildEvidencePack({
+    turn: 1,
+    recentActions: ['turn 1 step 1: read {}'],
+    humanIntent: ['keep me'],
+    maxChars: -1,
+  });
+  const parsed = JSON.parse(pack);
+  assert.equal(parsed.recent_actions.length, 1);
+  assert.equal(parsed.principal_messages.length, 1);
+});

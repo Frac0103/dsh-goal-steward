@@ -62,7 +62,7 @@ async function* fakeReasoningStream(text) {
 }
 
 /** Cordis-like context with the minimum surface this plugin touches. */
-function makeContext({ reply, throwOnReview = false, reasoningMode = false } = {}) {
+function makeContext({ reply, throwOnReview = false, reasoningMode = false, goalService = undefined } = {}) {
   const handlers = new Map();
   const sections = [];
   const disposers = [];
@@ -90,7 +90,7 @@ function makeContext({ reply, throwOnReview = false, reasoningMode = false } = {
       return () => {};
     },
     get(service) {
-      return service === 'goals' ? undefined : undefined;
+      return service === 'goals' ? goalService : undefined;
     },
     llm: {
       stream(options) {
@@ -512,5 +512,141 @@ test('an unwritable audit trail never breaks the turn', async () => {
     ctx.dispose();
   } finally {
     rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// ------------------------------------------------------------ hostile host surfaces
+
+test('the session map is bounded and evicts the oldest session', async () => {
+  const { ctx, handlers, llmCalls } = makeContext({ reply: ON_TRACK_REPLY });
+  apply(ctx, { audit: false, reviewEveryTurns: 1, maxTurnGap: 100 });
+  for (let index = 0; index < 520; index += 1) {
+    const { agent } = makeAgent();
+    agent.id = `session-${index}`;
+    await stopTurn(handlers, agent, 1);
+  }
+  assert.equal(llmCalls.length, 520, 'every uncached session is reviewed once');
+
+  // session-0 was evicted, so it now behaves like a fresh session and is even
+  // allowed to review the same turn number again.
+  const before = llmCalls.length;
+  const { agent: first } = makeAgent();
+  first.id = 'session-0';
+  await stopTurn(handlers, first, 1);
+  assert.equal(llmCalls.length, before + 1, 'the evicted session starts a fresh cadence');
+  ctx.dispose();
+});
+
+test('a throwing logger never breaks the turn', async () => {
+  const { ctx, handlers } = makeContext({ reply: ON_TRACK_REPLY });
+  const { agent } = makeAgent();
+  apply(ctx, { audit: false });
+  ctx.logger = new Proxy({}, {
+    get() { throw new Error('logger exploded'); },
+  });
+  await assert.doesNotReject(() => stopTurn(handlers, agent, 1));
+  ctx.dispose();
+});
+
+test('an unexpected error in the audit decision is swallowed by the listener', async () => {
+  const { ctx, handlers } = makeContext({ reply: ON_TRACK_REPLY });
+  const { agent } = makeAgent();
+  Object.defineProperty(agent, 'id', {
+    get() { throw new Error('session id exploded'); },
+  });
+  apply(ctx, { audit: false });
+  await assert.doesNotReject(() => stopTurn(handlers, agent, 1));
+  ctx.dispose();
+});
+
+test('a throwing agent/disposed payload is swallowed', () => {
+  const { ctx, handlers } = makeContext({ reply: ON_TRACK_REPLY });
+  apply(ctx, { audit: false });
+  const payload = {};
+  Object.defineProperty(payload, 'agent', {
+    get() { throw new Error('disposed payload exploded'); },
+  });
+  const listeners = handlers.get('agent/disposed') ?? [];
+  assert.equal(listeners.length, 1);
+  assert.doesNotThrow(() => listeners[0](payload));
+  ctx.dispose();
+});
+
+// ------------------------------------------------------------ durable goal and logger shapes
+
+test('a durable goal revision change forces an audit on the next turn', async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'goal-steward-test-'));
+  try {
+    const goalService = { goal: { revision: 1, objective: 'ship the reviewer' }, get() { return this.goal; } };
+    const { ctx, handlers } = makeContext({ reply: ON_TRACK_REPLY, goalService });
+    const { agent } = makeAgent();
+    apply(ctx, { audit: true, auditDir: dir });
+
+    await stopTurn(handlers, agent, 1);
+    // Turn 2 is inside the routine cadence window, so only the durable goal
+    // change can justify a second review.
+    goalService.goal = { revision: 2, objective: 'ship the reviewer v2' };
+    await stopTurn(handlers, agent, 2);
+
+    const audit = readFileSync(path.join(dir, 'audit.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);
+    assert.equal(audit.length, 2);
+    assert.equal(audit[0].trigger, 'initial');
+    assert.equal(audit[1].trigger, 'goal-changed');
+
+    // A third turn with an unchanged goal is back inside the routine window.
+    await stopTurn(handlers, agent, 3);
+    assert.equal(readFileSync(path.join(dir, 'audit.jsonl'), 'utf8').trim().split('\n').length, 2);
+    ctx.dispose();
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('child sessions are audited when explicitly enabled', async () => {
+  const { ctx, handlers, llmCalls } = makeContext({ reply: ON_TRACK_REPLY });
+  const { agent } = makeAgent();
+  agent.session.header.parentSession = 'parent-session';
+  apply(ctx, { audit: false, includeChildSessions: true });
+  await stopTurn(handlers, agent, 1);
+  assert.equal(llmCalls.length, 1);
+  ctx.dispose();
+});
+
+test('log() tolerates every logger shape the host may hand over', async () => {
+  const logged = [];
+  const { ctx, handlers } = makeContext({ reply: ON_TRACK_REPLY });
+  const { agent } = makeAgent();
+  apply(ctx, { audit: false, reviewEveryTurns: 1, maxTurnGap: 100 });
+
+  // Scoped logger factory.
+  ctx.logger = () => ({ info: (message) => logged.push(message), warn: (message) => logged.push(message) });
+  await stopTurn(handlers, agent, 1);
+
+  // Factory returning a non-object is a no-op.
+  ctx.logger = () => undefined;
+  await stopTurn(handlers, agent, 2);
+
+  // No logger at all.
+  delete ctx.logger;
+  await stopTurn(handlers, agent, 3);
+
+  assert.ok(logged.length >= 1, 'the scoped logger received the review summary');
+  ctx.dispose();
+});
+
+test('a skipped review is still audited, with a null ledger', async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'goal-steward-test-'));
+  try {
+    const { ctx, handlers } = makeContext({ reply: ON_TRACK_REPLY });
+    const { agent } = makeAgent([]);
+    apply(ctx, { audit: true, auditDir: dir, logEvents: false });
+    await stopTurn(handlers, agent, 1);
+    const record = JSON.parse(readFileSync(path.join(dir, 'audit.jsonl'), 'utf8').trim());
+    assert.equal(record.outcome, 'skip');
+    assert.equal(record.reason, 'no-human-intent');
+    assert.equal(record.goals, null);
+    ctx.dispose();
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
 });

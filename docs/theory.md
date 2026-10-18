@@ -59,6 +59,7 @@
 | 方法不干预规则 | 已实现 | `lib/prompt.js` | [RACI 权责矩阵](#raci)、[任务式指挥 / 指挥官意图](#commanders-intent) |
 | 评审员独立模型 | 计划中 | `lib/config.js` | [审计独立性](#audit-independence) |
 | 非阻塞纠偏通道 | 已实现 | `lib/reviewer.js`、`lib/index.js` | [RACI 权责矩阵](#raci)、[分级升级 / 分级授权](#escalation-ladder) |
+| 用户主权命令通道（/steward） | 已实现 | `lib/commands.js`、`lib/index.js` | [委托—代理问题](#principal-agent)、[RACI 权责矩阵](#raci)、[变更控制 / 变更控制委员会](#change-control) |
 | 评审员无工具权限 | 已实现 | `lib/reviewer.js`、`lib/index.js` | [审计独立性](#audit-independence)、[RACI 权责矩阵](#raci) |
 | 最终目标重定向的逐字引用闸门 | 已实现 | `lib/goals.js`、`lib/reviewer.js` | [变更控制 / 变更控制委员会](#change-control)、[委托—代理问题](#principal-agent)、[约束即契约条款](#contract-theory) |
 | 系统提示中的常驻治理协议 | 已实现 | `lib/prompt.js`、`lib/index.js` | [目标管理（MBO）](#mbo)、[任务式指挥 / 指挥官意图](#commanders-intent)、[三道防线（COSO 模型）](#three-lines) |

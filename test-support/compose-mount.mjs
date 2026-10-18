@@ -21,6 +21,7 @@
 import { Context } from '@deepseek-ai/cordis';
 import AgentRegistry from '@deepseek-ai/dsh-agent';
 import AgentLoop from '@deepseek-ai/dsh-agent-loop';
+import CommandsRuntime from '@deepseek-ai/dsh-commands';
 import LlmRuntime from '@deepseek-ai/dsh-llm';
 import SessionStore from '@deepseek-ai/dsh-session';
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection';
@@ -55,6 +56,19 @@ export async function mountPrerequisiteServices(ctx, options = {}) {
  */
 export async function mountAgentLoop(ctx) {
   await ctx.plugin(AgentLoop, { agents: [] });
+}
+
+/**
+ * Mount the production human-command registry (`ctx.commands`).
+ *
+ * Optional by design: a host without an interactive UI never mounts it, and the
+ * plugin under test must work either way.
+ *
+ * @param {Context} ctx context that already carries the prerequisite services.
+ * @returns {Promise<void>} resolved after CommandsRuntime activates.
+ */
+export async function mountCommands(ctx) {
+  await ctx.plugin(CommandsRuntime);
 }
 
 /**
