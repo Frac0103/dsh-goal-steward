@@ -162,18 +162,22 @@ $DSH_HOME/goal-steward/audit.jsonl
 
 ## 状态
 
-`0.1.0-alpha.1` — 早期版本，接口与提示词仍会变。当前已实现：常驻治理协议、回合边界审计、证据包、严格裁决校验、分级 steer、审计流水、三档预设、40 个单元测试。
+`0.2.0-alpha.3` — 早期版本，接口与提示词仍会变。当前已实现：常驻治理协议、回合边界审计、证据包、严格裁决校验、分级 steer、审计流水、三档预设、**双层目标账本（final / current）与目标变更分类**、**89 个测试（含真实组装层）**。
 
 路线图见 [docs/design.md#12-已知局限与路线图](./docs/design.md#12-已知局限与路线图)：
-0.2 宪章持久化 → 0.3 Web UI 治理胶囊 → 0.4 真子代理调查 → 0.5 多模型隔离与组织级治理。
+账本落盘 → Web UI 治理胶囊 → 真子代理调查 → 多模型隔离与组织级治理。
 
 ## 开发
 
 ```bash
-npm run check   # 每个 lib/*.js 用 node --check 解析
-npm test        # 40 个纯函数单元测试（无需宿主）
-npm run verify  # 两者
+npm ci            # 需要 devDependencies（真实宿主服务包，用于真实组装测试）
+npm run check     # 每个 lib/*.js 用 node --check 解析
+npm test          # 89 个测试：纯函数 + 假上下文 + 真实组装
+npm run test:compose  # 只跑真实组装层（真实服务 + 真实 AgentLoop，脚本化模型边界）
+npm run verify    # check + test
 ```
+
+测试分四层（L1 纯函数 / L2 假上下文 / L3 真实组装 / L4 实机），设计依据与后续缺口见 [docs/testing.md](./docs/testing.md)。
 
 欢迎 issue 与 PR，尤其是：不同管理模型的映射论证、证据包字段的取舍、Reviewer 提示词的对抗性测试。
 

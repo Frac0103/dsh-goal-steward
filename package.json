@@ -1,6 +1,6 @@
 {
   "name": "dsh-goal-steward",
-  "version": "0.2.0-alpha.2",
+  "version": "0.2.0-alpha.3",
   "description": "Independent goal governance for DeepSeek Harness: a standing goal charter plus a role-isolated reviewer that audits goal drift at turn boundaries, without micromanaging the executor.",
   "keywords": [
     "dsh",
@@ -46,6 +46,7 @@
   "scripts": {
     "check": "node scripts/check.mjs",
     "test": "node --test",
+    "test:compose": "node --test test/compose/reviewer.compose.test.mjs",
     "docs:theory": "node scripts/theory-doc.mjs",
     "verify": "npm run check && npm test"
   },
@@ -59,6 +60,12 @@
   "homepage": "https://github.com/Frac0103/dsh-goal-steward#readme",
   "devDependencies": {
     "@deepseek-ai/cordis": "~4.0.4",
-    "@deepseek-ai/dsh-llm": "^0.2.0-rc.2"
+    "@deepseek-ai/dsh-agent": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-agent-loop": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-llm": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-session": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-session-projection": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-system-prompt": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-tools": "0.2.0-rc.2"
   }
 }

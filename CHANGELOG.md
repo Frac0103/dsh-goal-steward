@@ -36,6 +36,23 @@
 - 实机审计出现 `reviewer produced no text`：推理模型的思考会吃掉输出预算，导致没有正文块。现在 `maxReviewTokens` 默认 900 → 2000，并在正文为空时从推理块兜底解析 JSON（审计记录 `parseSource: "reasoning"`）。
 - 新增 1 条回归测试（总计 87 条）
 
+## [0.2.0-alpha.3] - 2026-10-18
+
+### Added
+- **真实组装测试层** `test/compose/`：挂载真实 LLM / session / projection / system-prompt / tools / agent 服务与真实 AgentLoop，只把模型边界换成 `llm/stream` 脚本流（官方 `docs/testing.md` 对用户可见插件要求的 non-unit REAL-composition 层）
+  - 断言治理协议进入真实组装后的模型请求
+  - 断言 `agent/turn-stopping` 在真实回合收口触发、评审调用走真实 `ctx.llm.stream`、证据包含双层目标账本
+  - 断言审计 JSONL 落盘字段（`outcome` / `verdict` / `parseSource` / `goalChange` / `goals`）
+  - 断言 drift 裁决经真实 `agent.steer()` 进入 session 日志，并出现在执行者下一次真实模型请求中
+- `test-support/compose-mount.mjs`：按官方 testkit 同拓扑内联的服务挂载助手。官方 `@deepseek-ai/dsh-agent-loop-testkit@0.2.0-rc.2` 存在发布缺陷——静态 import 了未发布、也未声明的 `@deepseek-ai/dsh-working-directory@0.2.0-rc.2`，第三方无法安装
+- `docs/testing.md`：四层测试策略、mock 边界原则、CI 注意事项与后续缺口
+- `npm run test:compose` 脚本
+
+### Changed
+- CI 安装改为 `npm ci`（**不能**带 `--legacy-peer-deps`：真实服务包以 peer 依赖形式安装；已实际踩坑）
+- devDependencies 版本锁定到宿主同代 `0.2.0-rc.2`
+- 测试总数 89（L1 纯函数 77 + L2 假上下文 10 + L3 真实组装 2）
+
 ## [Unreleased]
 
 ### Planned
